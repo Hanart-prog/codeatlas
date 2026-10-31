@@ -1,10 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { JobResponse } from "@/types/generated/JobResponse";
 
 import {
   ApiRequestError,
+  type GraphFilter,
   fetchCommits,
+  fetchFileDetail,
+  fetchGraph,
   fetchJob,
   fetchOverview,
   fetchRepositories,
@@ -36,6 +39,25 @@ export function useCommits(id: number | undefined, limit: number, enabled: boole
     queryKey: ["commits", id, limit],
     queryFn: ({ signal }) => fetchCommits(id as number, limit, signal),
     enabled: enabled && id !== undefined,
+    retry: false,
+  });
+}
+
+export function useGraph(id: number | undefined, filter: GraphFilter) {
+  return useQuery({
+    queryKey: ["graph", id, filter],
+    queryFn: ({ signal }) => fetchGraph(id as number, filter, signal),
+    enabled: id !== undefined,
+    retry: false,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useFileDetail(id: number | undefined, path: string | undefined, ref: string | undefined) {
+  return useQuery({
+    queryKey: ["file", id, path, ref],
+    queryFn: ({ signal }) => fetchFileDetail(id as number, path as string, ref, signal),
+    enabled: id !== undefined && path !== undefined,
     retry: false,
   });
 }

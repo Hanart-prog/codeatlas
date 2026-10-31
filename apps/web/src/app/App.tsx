@@ -1,6 +1,8 @@
 import { Moon, Sun } from "lucide-react";
+import { lazy, Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { OverviewPage } from "@/features/overview/OverviewPage";
 import { PlannedPage } from "@/features/planned/PlannedPage";
 import { cn } from "@/lib/utils";
@@ -10,6 +12,10 @@ import { ROUTES } from "./routes";
 import { useTheme } from "./theme";
 import { useHashRoute } from "./useHashRoute";
 import { useSelectedRepository } from "./useSelectedRepository";
+
+const ExplorerPage = lazy(() =>
+  import("@/features/explorer/ExplorerPage").then((module) => ({ default: module.ExplorerPage })),
+);
 
 export function App() {
   const route = useHashRoute();
@@ -82,7 +88,15 @@ export function App() {
           </div>
         </header>
         <main id="main" tabIndex={-1} className="flex-1 overflow-y-auto p-6 outline-none">
-          {route.plannedPhase === undefined ? <OverviewPage selection={selection} /> : <PlannedPage route={route} />}
+          {route.plannedPhase !== undefined ? (
+            <PlannedPage route={route} />
+          ) : route.id === "explorer" ? (
+            <Suspense fallback={<Skeleton aria-label="Loading explorer" className="h-[520px] w-full" />}>
+              <ExplorerPage repository={selection.repository} theme={theme} />
+            </Suspense>
+          ) : (
+            <OverviewPage selection={selection} />
+          )}
         </main>
       </div>
     </div>

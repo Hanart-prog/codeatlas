@@ -21,8 +21,7 @@ export const ROUTES: readonly [AppRoute, ...AppRoute[]] = [
     id: "explorer",
     label: "Architecture Explorer",
     icon: Network,
-    purpose: "Browse the module graph, with import edges and historical co-change kept visually distinct.",
-    plannedPhase: 2,
+    purpose: "Browse the import graph at any commit, with cycles and resolution coverage.",
   },
   {
     id: "impact",

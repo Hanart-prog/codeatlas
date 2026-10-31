@@ -1,6 +1,8 @@
 import type { AnalyzeRequest } from "@/types/generated/AnalyzeRequest";
 import type { ApiErrorBody } from "@/types/generated/ApiErrorBody";
 import type { CommitPage } from "@/types/generated/CommitPage";
+import type { FileDetail } from "@/types/generated/FileDetail";
+import type { GraphResponse } from "@/types/generated/GraphResponse";
 import type { HealthResponse } from "@/types/generated/HealthResponse";
 import type { JobResponse } from "@/types/generated/JobResponse";
 import type { OverviewResponse } from "@/types/generated/OverviewResponse";
@@ -74,6 +76,22 @@ export const fetchOverview = (id: number, signal: AbortSignal) =>
 
 export const fetchCommits = (id: number, limit: number, signal: AbortSignal) =>
   request<CommitPage>(`/repositories/${id}/commits?limit=${limit}`, { signal });
+
+export interface GraphFilter {
+  ref?: string | undefined;
+  directory?: string | undefined;
+}
+
+function query(values: Record<string, string | undefined>): string {
+  const entries = Object.entries(values).filter((entry): entry is [string, string] => Boolean(entry[1]));
+  return new URLSearchParams(entries).toString();
+}
+
+export const fetchGraph = (id: number, filter: GraphFilter, signal: AbortSignal) =>
+  request<GraphResponse>(`/repositories/${id}/graph?${query({ ...filter })}`, { signal });
+
+export const fetchFileDetail = (id: number, path: string, ref: string | undefined, signal: AbortSignal) =>
+  request<FileDetail>(`/repositories/${id}/files?${query({ path, ref })}`, { signal });
 
 export const fetchJob = (id: number) => request<JobResponse>(`/jobs/${id}`);
 
