@@ -1,0 +1,31 @@
+[package]
+name = "atlas-cli"
+description = "The codeatlas command-line interface"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "codeatlas"
+path = "src/main.rs"
+
+[dependencies]
+atlas-analysis.workspace = true
+atlas-api.workspace = true
+atlas-model.workspace = true
+atlas-storage.workspace = true
+clap.workspace = true
+directories.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+atlas-fixtures.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true
