@@ -1,0 +1,40 @@
+{
+  "_comment": "Worked out by hand from the commit list in fixtures/generator/src/lib.rs. Edges read source -> target, where source imports target. Do not regenerate from engine output.",
+  "snapshots": [
+    {
+      "commit_subject": "Add account routes",
+      "nodes": ["src/api/routes.ts", "src/auth/session.ts", "src/auth/token.ts", "src/billing/invoice.ts", "src/users/account.ts", "tests/auth.test.ts"],
+      "edges": [
+        ["src/api/routes.ts", "src/auth/session.ts"],
+        ["src/auth/session.ts", "src/auth/token.ts"],
+        ["src/billing/invoice.ts", "src/auth/session.ts"],
+        ["tests/auth.test.ts", "src/auth/session.ts"]
+      ],
+      "cycles": []
+    },
+    {
+      "commit_subject": "Introduce session and token cycle",
+      "nodes": ["src/api/routes.ts", "src/auth/session.ts", "src/auth/token.ts", "src/billing/invoice.ts", "src/users/account.ts", "tests/auth.test.ts"],
+      "edges": [
+        ["src/api/routes.ts", "src/auth/session.ts"],
+        ["src/api/routes.ts", "src/billing/invoice.ts"],
+        ["src/auth/session.ts", "src/auth/token.ts"],
+        ["src/auth/token.ts", "src/auth/session.ts"],
+        ["src/billing/invoice.ts", "src/auth/session.ts"],
+        ["tests/auth.test.ts", "src/auth/session.ts"]
+      ],
+      "cycles": [["src/auth/session.ts", "src/auth/token.ts"]]
+    },
+    {
+      "commit_subject": "Add vendored output and odd paths",
+      "nodes": ["src/api/routes.ts", "src/auth/session.ts", "src/auth/token.ts", "src/billing/invoice.ts", "src/billing/tax.ts", "src/módulo uno/índice.ts", "src/users/account.ts", "tests/auth.test.ts"],
+      "edges": [
+        ["src/api/routes.ts", "src/auth/session.ts"],
+        ["src/api/routes.ts", "src/billing/invoice.ts"],
+        ["src/auth/session.ts", "src/auth/token.ts"],
+        ["src/billing/invoice.ts", "src/auth/session.ts"]
+      ],
+      "cycles": []
+    }
+  ]
+}

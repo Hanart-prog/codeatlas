@@ -42,6 +42,11 @@ pub const MIGRATIONS: &[Migration] = &[
         name: "git_history",
         sql: include_str!("../migrations/0002_git_history.sql"),
     },
+    Migration {
+        version: 3,
+        name: "import_snapshots",
+        sql: include_str!("../migrations/0003_import_snapshots.sql"),
+    },
 ];
 
 /// What a migration pass did.

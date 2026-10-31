@@ -9,7 +9,9 @@ publish.workspace = true
 
 [dependencies]
 atlas-git.workspace = true
+atlas-graph.workspace = true
 atlas-model.workspace = true
+atlas-parser.workspace = true
 atlas-storage.workspace = true
 
 [dev-dependencies]

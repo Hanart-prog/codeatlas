@@ -11,6 +11,7 @@ use atlas_model::{
 use atlas_storage::{Database, RunKey};
 
 use crate::lineage::assign_identities;
+use crate::snapshot::ensure_snapshot;
 
 /// What to analyze.
 #[derive(Debug, Clone)]
@@ -89,6 +90,7 @@ pub fn analyze(
     };
 
     if let Some(run) = database.cached_run(&key)? {
+        ensure_snapshot(database, &git, &target_oid, config)?;
         return Ok(AnalyzeOutcome {
             repository,
             run_id: run.id,
@@ -113,6 +115,7 @@ pub fn analyze(
         };
     }
 
+    ensure_snapshot(database, &git, &target_oid, config)?;
     let repository = database.upsert_repository(&git.canonical_path())?;
     Ok(AnalyzeOutcome {
         repository,

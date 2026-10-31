@@ -4,14 +4,33 @@ use std::collections::HashSet;
 
 use atlas_model::history::ChangeStatus;
 use atlas_model::{
-    AtlasError, FileSummary, HistorySummary, OverviewResponse, RepositoryId, RunSummary,
+    AtlasError, FileChurn, FileSummary, HistorySummary, OverviewResponse, RepositoryId, RunSummary,
 };
-use atlas_storage::Database;
+use atlas_storage::{Database, IdentityRow, StoredChange};
 
 use crate::churn::{ChurnInput, compute_churn};
 
 /// Files listed in `top_churn`.
 pub const TOP_CHURN_LIMIT: usize = 20;
+
+/// Churn of every identity in a run, most active first.
+pub(crate) fn run_churn(changes: &[StoredChange], identities: Vec<IdentityRow>) -> Vec<FileChurn> {
+    let inputs: Vec<_> = changes
+        .iter()
+        .map(|change| ChurnInput {
+            identity: change.identity,
+            position: change.position,
+            added_lines: change.added_lines,
+            deleted_lines: change.deleted_lines,
+            exclusion: change.exclusion,
+        })
+        .collect();
+    let paths: Vec<_> = identities
+        .into_iter()
+        .map(|identity| (identity.paths, identity.exists_at_tip))
+        .collect();
+    compute_churn(&inputs, &paths)
+}
 
 /// Summarizes the latest completed analysis of a repository.
 pub fn overview(
@@ -39,21 +58,7 @@ pub fn overview(
         .filter(|change| change.status == ChangeStatus::Renamed)
         .count() as u32;
 
-    let inputs: Vec<_> = changes
-        .iter()
-        .map(|change| ChurnInput {
-            identity: change.identity,
-            position: change.position,
-            added_lines: change.added_lines,
-            deleted_lines: change.deleted_lines,
-            exclusion: change.exclusion,
-        })
-        .collect();
-    let paths: Vec<_> = identities
-        .into_iter()
-        .map(|identity| (identity.paths, identity.exists_at_tip))
-        .collect();
-    let mut top_churn = compute_churn(&inputs, &paths);
+    let mut top_churn = run_churn(&changes, identities);
     top_churn.truncate(TOP_CHURN_LIMIT);
 
     Ok(OverviewResponse {

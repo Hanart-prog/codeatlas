@@ -5,6 +5,7 @@
 
 mod history;
 mod migrations;
+mod snapshots;
 
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -15,6 +16,7 @@ use thiserror::Error;
 
 pub use history::{IdentityRow, RunKey, RunRow, StoredChange};
 pub use migrations::{MIGRATIONS, Migration, MigrationReport, latest_version};
+pub use snapshots::{SnapshotId, SnapshotKey};
 
 /// How long a connection waits on a lock held by another connection.
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
