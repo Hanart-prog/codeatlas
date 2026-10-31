@@ -7,7 +7,7 @@ WEB := apps/web
 PNPM_VERSION := 10.34.9
 PNPM := $(shell command -v pnpm 2>/dev/null || echo npx --yes pnpm@$(PNPM_VERSION))
 
-.PHONY: setup check test build dev types fixture clean
+.PHONY: setup check test build e2e dev types fixture clean
 
 setup: ## Fetch Rust and frontend dependencies
 	@test -x "$(CARGO)" || { echo "cargo not found; install Rust from https://rustup.rs"; exit 1; }
@@ -26,6 +26,10 @@ test: ## All Rust and frontend tests
 build: ## Release binary and production frontend
 	$(CARGO) build --release --locked -p atlas-cli
 	cd $(WEB) && $(PNPM) build
+
+e2e: ## Browser tests against a generated fixture; set PW_CHANNEL=chrome to use local Chrome
+	$(CARGO) build -p atlas-cli -p atlas-fixtures
+	cd $(WEB) && $(PNPM) build && $(PNPM) e2e
 
 dev: ## API on :4317 and Vite on :5173; Ctrl-C stops both
 	@trap 'kill 0' EXIT; \
