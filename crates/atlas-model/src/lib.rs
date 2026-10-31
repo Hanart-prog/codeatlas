@@ -3,6 +3,7 @@
 //! This crate has no knowledge of Git, SQLite or HTTP, which keeps the engine
 //! usable from the CLI and the API alike.
 
+pub mod compare;
 pub mod config;
 pub mod dto;
 pub mod error;
@@ -11,6 +12,11 @@ pub mod history;
 pub mod ids;
 pub mod impact;
 
+pub use compare::{
+    ArchitectureSummary, CommitRelation, CompareCounts, CompareRequest, CompareResponse,
+    CycleChange, FileMetricChange, FileRename, ImportChange, RenameEvidence, TimelinePoint,
+    TimelineResponse,
+};
 pub use config::{AnalysisConfig, AtlasConfig, Limits, ServerConfig, StorageConfig};
 pub use dto::{
     AnalysisStatus, AnalyzeRequest, ApiErrorBody, ApiErrorDetail, CommitEntry, CommitPage,

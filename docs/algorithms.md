@@ -117,6 +117,22 @@ Results sort by score descending, then path ascending, comparing scores at 6 dec
 
 A selected file must exist at the cutoff. Its identity is resolved at that point, so history follows renames made before the cutoff, and later renames are unknown.
 
+## Architecture comparison
+
+Each side is the import snapshot of one commit. Comparing any two commits works, and nothing is stored, because identical inputs reproduce identical results.
+
+- **Renames** come from a direct diff of the two trees at `rename_similarity_percent`, then from replaying file identities along the first-parent chain between them, when one commit is on the other's chain within 2,000 commits. A file added after the earlier commit never links to a deleted file that had its path, and a file deleted later is not followed. One counts only if the old path left the graph and the new path is new to it, and each path has one claim, with direct evidence first. Base paths are then carried to their new names before anything else is compared.
+- **Files:** added files are only at the target and removed files only at the base, leaving out renames.
+- **Imports** are identified by source, target and kind, so a moved line or a rewritten specifier is not a change. Imports that differ only through a rename are counted, not listed.
+- **Cycles** are strongly connected components. The same member set is the same cycle; one that changes between type-only and runtime stays unchanged, with a note. Remaining cycles that share members pair up, largest overlap first, as a changed cycle with the files that joined and left. Anything unpaired is new or resolved.
+- **Metrics** are listed for files at both commits when in-degree, out-degree or transitive dependents differ, largest total change first, then path. Dependents count every file that reaches this one through imports, including through type imports, and leave the file itself out. Only files reachable from a changed import's target can have different dependents, so others skip the count; a property test checks this against a full recount.
+- **`uncertain`** marks an added or removed import whose importing file did not parse cleanly at either commit, because the difference may come from parsing.
+- **Notes** say why figures may not compare like with like: the commits are diverged, backward or equal; the root `tsconfig.json` differs; parsing was incomplete; or unresolved or invisible import counts differ.
+
+`limit` cuts each list (default 500). Counts are always the true totals.
+
+**Timeline:** file, import and cycle counts at evenly spaced commits of the latest analysis, always with the first and last, each read from that commit's own snapshot.
+
 ## Verification
 
 Besides the fixture, Phase 1 was checked against the `git` CLI on `sindresorhus/ky` (592 first-parent commits, one manual run, not part of CI):
@@ -137,3 +153,13 @@ Phase 2 edges were compared with the TypeScript compiler's `resolveModuleName`, 
 For `zod`, the check script found 634 edges because TypeScript's `preProcessFile` scanner skipped 6 `export * as x from` lines. The Phase 2 `zod` figures exclude its docs package's own aliases, which are out of scope and reported as `unknown_alias`.
 
 Phase 3 co-change counts were recomputed from `git log --name-status` with no libgit2 involved, in a manual run outside CI. On `sindresorhus/ky`, all 35 pairs for `source/core/Ky.ts` matched on selected, candidate and shared counts, and the eligible commit count matched (176). On `shadcn-ui/taxonomy` the eligible count matched (64). Scores themselves have not been evaluated against outcomes; Phase 5 does that.
+
+Phase 4 comparisons are recomputed by [scripts/verify_compare.py](../scripts/verify_compare.py), which shares no code with the engine. It reads each commit's edges from `codeatlas graph` and works out differences, Tarjan's cycles, cycle pairs, degrees and dependents itself, on 20 commit pairs per repository, and `git diff -M50%` checks direct renames. CI runs this on a pinned `ky` commit through `make verify`, along with [scripts/verify_imports.cjs](../scripts/verify_imports.cjs), which repeats the Phase 2 compiler check. The other two repositories were run by hand.
+
+| Repository | Pairs | Import changes | File changes | Cycle changes | Metric changes | Result |
+|---|---:|---:|---:|---:|---:|---|
+| `sindresorhus/ky` | 20 | 2,121 | 958 | 25 | 154 | Identical |
+| `shadcn-ui/taxonomy` | 20 | 2,266 | 905 | 0 | 419 | Identical |
+| `colinhacks/zod` (last 402 commits) | 20 | 1,413 | 988 | 33 | 1,631 | Identical |
+
+Direct renames matched `git` on all of `ky` and `zod`, and differed on 8 `taxonomy` pairs because libgit2 and `git` score similarity differently. History following added 12 renames on `taxonomy` that the direct diff missed. The script uses the engine's renames for its import figures, so rename differences stay separate. It also shares the parser's edges, which is why the compiler check runs beside it.

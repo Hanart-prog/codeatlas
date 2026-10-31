@@ -122,6 +122,43 @@ impl DependencyGraph {
             .collect()
     }
 
+    /// How many files depend on `start`, directly or transitively.
+    pub fn dependent_count(&self, start: &RepoPath) -> u32 {
+        let Some(&origin) = self.indices.get(start) else {
+            return 0;
+        };
+        self.walk([origin], Direction::Incoming).len() as u32 - 1
+    }
+
+    /// `starts` and every file they reach through imports.
+    pub fn reachable_from<'a>(
+        &self,
+        starts: impl IntoIterator<Item = &'a RepoPath>,
+    ) -> HashSet<RepoPath> {
+        let starts = starts.into_iter().filter_map(|path| self.indices.get(path));
+        self.walk(starts.copied(), Direction::Outgoing)
+            .into_iter()
+            .map(|node| self.graph[node].clone())
+            .collect()
+    }
+
+    fn walk(
+        &self,
+        starts: impl IntoIterator<Item = NodeIndex>,
+        direction: Direction,
+    ) -> HashSet<NodeIndex> {
+        let mut pending: Vec<NodeIndex> = starts.into_iter().collect();
+        let mut seen: HashSet<NodeIndex> = pending.iter().copied().collect();
+        while let Some(node) = pending.pop() {
+            for next in self.graph.neighbors_directed(node, direction) {
+                if seen.insert(next) {
+                    pending.push(next);
+                }
+            }
+        }
+        seen
+    }
+
     /// Like [`Self::reverse_distances`], but gives each dependent's import chain:
     /// the dependent first and `start` last, so each file imports the next.
     pub fn reverse_paths(

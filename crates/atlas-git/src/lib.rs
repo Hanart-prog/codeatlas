@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use atlas_model::history::{
     ChangeStatus, CommitChanges, CommitRecord, ExclusionReason, FileChange, TreeSummary,
 };
-use atlas_model::{AnalysisConfig, AtlasError, Limits, Oid, RepoPath};
+use atlas_model::{AnalysisConfig, AtlasError, CommitSummary, Limits, Oid, RepoPath};
 use git2::{
     Commit, Delta, DiffFindOptions, DiffOptions, FileMode, ObjectType, Patch, Repository,
     RepositoryOpenFlags, TreeWalkMode, TreeWalkResult,
@@ -266,6 +266,53 @@ impl GitRepository {
             commit: record,
             changes,
             unreadable_paths,
+        })
+    }
+
+    /// Files that moved between two commits, as `(from, to)`, by diffing their
+    /// trees directly. Works for any two commits, related or not.
+    pub fn renames_between(
+        &self,
+        base: &Oid,
+        target: &Oid,
+        rules: &ExclusionRules,
+    ) -> Result<Vec<(RepoPath, RepoPath)>, GitError> {
+        let (base, target) = (self.commit(base)?.tree()?, self.commit(target)?.tree()?);
+        let mut options = DiffOptions::new();
+        options.max_size(rules.diff_max_size());
+        let mut diff =
+            self.repository
+                .diff_tree_to_tree(Some(&base), Some(&target), Some(&mut options))?;
+        let mut find = DiffFindOptions::new();
+        find.renames(true)
+            .rename_threshold(rules.rename_similarity_percent())
+            .rename_limit(RENAME_LIMIT);
+        diff.find_similar(Some(&mut find))?;
+
+        Ok(diff
+            .deltas()
+            .filter(|delta| delta.status() == Delta::Renamed)
+            .filter_map(|delta| {
+                let from = delta.old_file().path_bytes().and_then(parse_path)?;
+                let to = delta.new_file().path_bytes().and_then(parse_path)?;
+                Some((from, to))
+            })
+            .collect())
+    }
+
+    /// Whether `ancestor` is a strict ancestor of `descendant`.
+    pub fn is_ancestor(&self, ancestor: &Oid, descendant: &Oid) -> Result<bool, GitError> {
+        let (ancestor, descendant) = (self.commit(ancestor)?.id(), self.commit(descendant)?.id());
+        Ok(self.repository.graph_descendant_of(descendant, ancestor)?)
+    }
+
+    /// A commit's id, time and subject.
+    pub fn commit_summary(&self, oid: &Oid) -> Result<CommitSummary, GitError> {
+        let record = commit_record(&self.commit(oid)?)?;
+        Ok(CommitSummary {
+            oid: record.oid,
+            committed_at: record.committed_at,
+            subject: record.subject,
         })
     }
 

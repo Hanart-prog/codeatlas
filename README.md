@@ -2,9 +2,9 @@
 
 Analyze a local Git repository's history and source dependencies to explain architecture evolution, estimate change impact, and backtest those estimates against later commits.
 
-> **Status: Phase 3 (change impact).** Given changed files and a historical cutoff, CodeAtlas ranks the files to inspect, with import and co-change evidence kept separate. It also indexes first-parent history, reports churn, and shows the import graph at any commit. **Architecture comparison and backtesting do not exist yet:** `compare`, `backtest`, `report` and `demo` exit with an error naming the phase that delivers them.
+> **Status: Phase 4 (Architecture Time Machine).** CodeAtlas compares the import graphs of two commits: added, removed and renamed files, added and removed imports, new, resolved and changed cycles, and before and after metrics, with charts of how the graph grew over time. Given changed files and a historical cutoff, it also ranks the files to inspect, with import and co-change evidence kept separate. It indexes first-parent history, reports churn, and shows the import graph at any commit. **Backtesting does not exist yet:** `backtest`, `report` and `demo` exit with an error naming the phase that delivers them.
 
-Rankings are a heuristic. A score is not a probability of failure, and co-change is correlation, not causation.
+Rankings are a heuristic. A score is not a probability of failure, and co-change is correlation, not causation. Import changes describe what source declares, not what runs.
 
 CodeAtlas is local-first: no accounts, cloud services, paid APIs, LLMs or telemetry. It treats analyzed repositories as untrusted, read-only input and never executes their code, hooks or scripts.
 
@@ -29,6 +29,7 @@ make dev     # API on 127.0.0.1:4317, dashboard with live reload on http://127.0
 | `make build` | Release binary and production frontend |
 | `make e2e` | Browser tests; `PW_CHANNEL=chrome make e2e` uses local Chrome |
 | `make types` | Regenerate frontend types from the Rust DTOs |
+| `make verify REPO=/path/to/clone` | Recheck comparisons and imports independently on a real repository |
 | `make fixture DIR=/empty/dir` | Generate the deterministic fixture repository |
 
 Open the dashboard and enter a repository path, or use the CLI. After `make build`, `codeatlas serve` run from the repository root also serves the dashboard at http://127.0.0.1:4317.
@@ -40,6 +41,8 @@ cargo run -p atlas-cli -- analyze /path/to/repo --ref HEAD --history 500
 cargo run -p atlas-cli -- overview /path/to/repo --format json
 cargo run -p atlas-cli -- graph /path/to/repo --ref <commit> --directory src --format json
 cargo run -p atlas-cli -- impact /path/to/repo --ref <commit> --file src/auth/session.ts --top 10
+cargo run -p atlas-cli -- compare /path/to/repo --base <commit> --target <commit> --format json
+cargo run -p atlas-cli -- timeline /path/to/repo --points 40
 cargo run -p atlas-cli -- serve /path/to/repo --port 4317
 curl http://127.0.0.1:4317/api/v1/repositories
 ```

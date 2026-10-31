@@ -1,3 +1,6 @@
+import type { TimelineResponse } from "@/types/generated/TimelineResponse";
+import type { CompareRequest } from "@/types/generated/CompareRequest";
+import type { CompareResponse } from "@/types/generated/CompareResponse";
 import type { AnalyzeRequest } from "@/types/generated/AnalyzeRequest";
 import type { ApiErrorBody } from "@/types/generated/ApiErrorBody";
 import type { CommitPage } from "@/types/generated/CommitPage";
@@ -98,6 +101,12 @@ export const fetchFileDetail = (id: number, path: string, ref: string | undefine
 
 export const runImpact = (id: number, impact: ImpactRequest) =>
   postJson<ImpactResponse>(`/repositories/${id}/impact`, impact);
+
+export const runCompare = (id: number, compare: CompareRequest) =>
+  postJson<CompareResponse>(`/repositories/${id}/compare`, compare);
+
+export const fetchTimeline = (id: number, signal: AbortSignal) =>
+  request<TimelineResponse>(`/repositories/${id}/timeline`, { signal });
 
 export const fetchJob = (id: number) => request<JobResponse>(`/jobs/${id}`);
 

@@ -29,15 +29,44 @@ pub struct GraphQuery {
     pub include_cochange: bool,
 }
 
-struct Snapshot {
-    id: SnapshotId,
-    commit: Oid,
-    nodes: Vec<GraphNode>,
-    edges: Vec<GraphEdge>,
-    cycles: Vec<atlas_model::Cycle>,
+/// A commit's import graph with degrees and cycles filled in.
+pub(crate) struct Architecture {
+    pub nodes: Vec<GraphNode>,
+    pub edges: Vec<GraphEdge>,
+    pub cycles: Vec<atlas_model::Cycle>,
+    pub graph: DependencyGraph,
 }
 
-fn load(
+impl Architecture {
+    pub fn new(mut nodes: Vec<GraphNode>, edges: Vec<GraphEdge>) -> Self {
+        let mut graph = DependencyGraph::new(nodes.iter().map(|node| node.path.clone()));
+        for edge in &edges {
+            graph.add_edge(&edge.source, &edge.target, is_type_only(edge.edge_type));
+        }
+
+        let cycles = graph.cycles();
+        let cyclic: HashSet<&RepoPath> = cycles.iter().flat_map(|c| c.members.iter()).collect();
+        for node in &mut nodes {
+            node.in_degree = graph.in_degree(&node.path);
+            node.out_degree = graph.out_degree(&node.path);
+            node.in_cycle = cyclic.contains(&node.path);
+        }
+        Self {
+            nodes,
+            edges,
+            cycles,
+            graph,
+        }
+    }
+}
+
+pub(crate) struct Snapshot {
+    pub id: SnapshotId,
+    pub commit: Oid,
+    pub architecture: Architecture,
+}
+
+pub(crate) fn load(
     database: &Database,
     repository: &RepositoryEntry,
     git_ref: Option<&str>,
@@ -55,26 +84,12 @@ fn load(
     };
     let id = snapshot_for(database, &git, repository, &commit, config)?;
 
-    let mut nodes = database.snapshot_nodes(id)?;
-    let edges = database.snapshot_edges(id)?;
-    let mut graph = DependencyGraph::new(nodes.iter().map(|node| node.path.clone()));
-    for edge in &edges {
-        graph.add_edge(&edge.source, &edge.target, is_type_only(edge.edge_type));
-    }
-
-    let cycles = graph.cycles();
-    let cyclic: HashSet<&RepoPath> = cycles.iter().flat_map(|c| c.members.iter()).collect();
-    for node in &mut nodes {
-        node.in_degree = graph.in_degree(&node.path);
-        node.out_degree = graph.out_degree(&node.path);
-        node.in_cycle = cyclic.contains(&node.path);
-    }
+    let architecture =
+        Architecture::new(database.snapshot_nodes(id)?, database.snapshot_edges(id)?);
     Ok(Snapshot {
         id,
         commit,
-        nodes,
-        edges,
-        cycles,
+        architecture,
     })
 }
 
@@ -95,10 +110,11 @@ pub fn graph(
     config: &AtlasConfig,
 ) -> Result<GraphResponse, AtlasError> {
     let snapshot = load(database, repository, query.git_ref.as_deref(), config)?;
-    let total_node_count = snapshot.nodes.len() as u32;
-    let total_edge_count = snapshot.edges.len() as u32;
+    let architecture = snapshot.architecture;
+    let total_node_count = architecture.nodes.len() as u32;
+    let total_edge_count = architecture.edges.len() as u32;
 
-    let mut nodes: Vec<GraphNode> = snapshot
+    let mut nodes: Vec<GraphNode> = architecture
         .nodes
         .into_iter()
         .filter(|node| {
@@ -122,7 +138,7 @@ pub fn graph(
     } else {
         Vec::new()
     };
-    let edges = snapshot
+    let edges = architecture
         .edges
         .into_iter()
         .filter(|edge| kept.contains(&edge.source) && kept.contains(&edge.target))
@@ -131,7 +147,7 @@ pub fn graph(
     Ok(GraphResponse {
         coverage: database.snapshot_coverage(snapshot.id)?,
         commit: snapshot.commit,
-        cycles: snapshot.cycles,
+        cycles: architecture.cycles,
         cochange,
         nodes,
         edges,
@@ -189,7 +205,8 @@ pub fn file_detail(
     config: &AtlasConfig,
 ) -> Result<FileDetail, AtlasError> {
     let snapshot = load(database, repository, git_ref.as_deref(), config)?;
-    let node = snapshot
+    let architecture = &snapshot.architecture;
+    let node = architecture
         .nodes
         .iter()
         .find(|node| &node.path == path)
@@ -206,13 +223,13 @@ pub fn file_detail(
     };
 
     let (imports, imported_by) = (
-        snapshot
+        architecture
             .edges
             .iter()
             .filter(|edge| &edge.source == path)
             .cloned()
             .collect(),
-        snapshot
+        architecture
             .edges
             .iter()
             .filter(|edge| &edge.target == path)

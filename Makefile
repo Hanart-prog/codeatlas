@@ -7,7 +7,7 @@ WEB := apps/web
 PNPM_VERSION := 10.34.9
 PNPM := $(shell command -v pnpm 2>/dev/null || echo npx --yes pnpm@$(PNPM_VERSION))
 
-.PHONY: setup check test build e2e dev types fixture clean
+.PHONY: setup check test build e2e verify dev types fixture clean
 
 setup: ## Fetch Rust and frontend dependencies
 	@test -x "$(CARGO)" || { echo "cargo not found; install Rust from https://rustup.rs"; exit 1; }
@@ -30,6 +30,15 @@ build: ## Release binary and production frontend
 e2e: ## Browser tests against a generated fixture; set PW_CHANNEL=chrome to use local Chrome
 	$(CARGO) build -p atlas-cli -p atlas-fixtures
 	cd $(WEB) && $(PNPM) build && $(PNPM) e2e
+
+verify: ## Recheck a real repository independently: make verify REPO=/path/to/clone
+	@test -n "$(REPO)" || { echo "usage: make verify REPO=/path/to/clone"; exit 1; }
+	$(CARGO) build --locked -p atlas-cli
+	python3 scripts/verify_compare.py target/debug/codeatlas "$(REPO)"
+	@data=$$(mktemp -d); graph=$$data/graph.json; \
+	target/debug/codeatlas analyze "$(REPO)" --data-dir "$$data" >/dev/null && \
+	target/debug/codeatlas graph "$(REPO)" --limit 50000 --format json --data-dir "$$data" > "$$graph" && \
+	node scripts/verify_imports.cjs "$(CURDIR)/$(WEB)/node_modules/typescript" "$(REPO)" "$$graph"
 
 dev: ## API on :4317 and Vite on :5173; Ctrl-C stops both
 	@trap 'kill 0' EXIT; \

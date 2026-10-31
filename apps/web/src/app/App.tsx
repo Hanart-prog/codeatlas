@@ -21,6 +21,10 @@ const ImpactPage = lazy(() =>
   import("@/features/impact/ImpactPage").then((module) => ({ default: module.ImpactPage })),
 );
 
+const TimeMachinePage = lazy(() =>
+  import("@/features/time-machine/TimeMachinePage").then((module) => ({ default: module.TimeMachinePage })),
+);
+
 export function App() {
   const route = useHashRoute();
   const { theme, toggle } = useTheme();
@@ -101,6 +105,10 @@ export function App() {
           ) : route.id === "impact" ? (
             <Suspense fallback={<Skeleton aria-label="Loading change impact" className="h-[520px] w-full" />}>
               <ImpactPage repository={selection.repository} theme={theme} />
+            </Suspense>
+          ) : route.id === "time-machine" ? (
+            <Suspense fallback={<Skeleton aria-label="Loading time machine" className="h-[520px] w-full" />}>
+              <TimeMachinePage repository={selection.repository} theme={theme} />
             </Suspense>
           ) : (
             <OverviewPage selection={selection} />

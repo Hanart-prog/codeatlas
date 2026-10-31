@@ -6,10 +6,12 @@ import type { CoChangeEdge } from "@/types/generated/CoChangeEdge";
 import type { GraphEdge } from "@/types/generated/GraphEdge";
 import type { GraphNode } from "@/types/generated/GraphNode";
 
+import { type DiffState, edgeId } from "./graphDiff";
+
 /** Canvas colors, as Cytoscape cannot read the CSS theme variables. */
 const COLORS = {
-  dark: { node: "#94a3b8", cycle: "#f87171", label: "#e2e8f0", edge: "#64748b", selected: "#5eead4", cochange: "#fbbf24" },
-  light: { node: "#64748b", cycle: "#dc2626", label: "#1e293b", edge: "#94a3b8", selected: "#0f766e", cochange: "#b45309" },
+  dark: { node: "#94a3b8", cycle: "#f87171", label: "#e2e8f0", edge: "#64748b", selected: "#5eead4", cochange: "#fbbf24", added: "#34d399", removed: "#fb7185" },
+  light: { node: "#64748b", cycle: "#dc2626", label: "#1e293b", edge: "#94a3b8", selected: "#0f766e", cochange: "#b45309", added: "#047857", removed: "#be123c" },
 } as const;
 
 const LINE_STYLES: Record<GraphEdge["edge_type"], "solid" | "dashed" | "dotted"> = {
@@ -24,24 +26,30 @@ function fileName(path: string): string {
 }
 
 interface Props {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
+  nodes: Pick<GraphNode, "path" | "in_degree" | "out_degree" | "in_cycle">[];
+  edges: Pick<GraphEdge, "source" | "target" | "edge_type">[];
   /** Correlation from history, drawn apart from imports. */
   cochange?: CoChangeEdge[];
   /** Files drawn with a selection ring without being the selected file. */
   emphasized?: string[];
+  /** Differences to draw, by file path and by `edgeId`. */
+  fileDiff?: ReadonlyMap<string, DiffState>;
+  importDiff?: ReadonlyMap<string, DiffState>;
   selected: string | undefined;
   onSelect: (path: string | undefined) => void;
   theme: Theme;
 }
 
 const NONE: never[] = [];
+const NO_DIFF: ReadonlyMap<string, DiffState> = new Map();
 
 export function GraphCanvas({
   nodes,
   edges,
   cochange = NONE,
   emphasized = NONE,
+  fileDiff = NO_DIFF,
+  importDiff = NO_DIFF,
   selected,
   onSelect,
   theme,
@@ -58,16 +66,21 @@ export function GraphCanvas({
       elements: [
         ...nodes.map((node) => ({
           data: { id: node.path, label: fileName(node.path), degree: node.in_degree + node.out_degree },
-          classes: [node.in_cycle ? "cycle" : "", emphasized.includes(node.path) ? "emphasized" : ""].join(" "),
+          classes: [
+            node.in_cycle ? "cycle" : "",
+            emphasized.includes(node.path) ? "emphasized" : "",
+            fileDiff.get(node.path) ?? "",
+          ].join(" "),
         })),
         ...edges.filter((edge) => known.has(edge.source) && known.has(edge.target)).map((edge) => ({
           data: {
-            id: `${edge.source}->${edge.target}:${edge.edge_type}`,
+            id: edgeId(edge),
             source: edge.source,
             target: edge.target,
             line: LINE_STYLES[edge.edge_type],
             arrow: edge.edge_type === "re_export" ? "triangle-tee" : "triangle",
           },
+          classes: importDiff.get(edgeId(edge)) ?? "",
         })),
         ...cochange.map((pair) => ({
           data: {
@@ -93,6 +106,7 @@ export function GraphCanvas({
             height: "mapData(degree, 0, 12, 14, 34)",
           },
         },
+        { selector: "node.added", style: { "background-color": colors.added, shape: "round-rectangle" } },
         { selector: "node.cycle", style: { "background-color": colors.cycle, shape: "diamond" } },
         { selector: "node.emphasized", style: { "border-width": 3, "border-color": colors.selected } },
         { selector: "node:selected", style: { "border-width": 3, "border-color": colors.selected } },
@@ -106,6 +120,19 @@ export function GraphCanvas({
             "target-arrow-shape": "data(arrow)" as "triangle",
             "curve-style": "bezier",
           },
+        },
+        {
+          selector: "node.removed",
+          style: { "background-opacity": 0.15, "border-width": 2, "border-style": "dashed", "border-color": colors.removed },
+        },
+        { selector: "node.renamed", style: { "border-width": 3, "border-style": "double", "border-color": colors.edge } },
+        {
+          selector: "edge.added",
+          style: { width: 3, "line-color": colors.added, "target-arrow-color": colors.added },
+        },
+        {
+          selector: "edge.removed",
+          style: { "line-style": "dashed", "line-color": colors.removed, "target-arrow-color": colors.removed },
         },
         {
           selector: "edge.cochange",
@@ -135,14 +162,14 @@ export function GraphCanvas({
       instance.current = null;
       graph.destroy();
     };
-  }, [nodes, edges, cochange, emphasized, theme, onSelect]);
+  }, [nodes, edges, cochange, emphasized, fileDiff, importDiff, theme, onSelect]);
 
   useEffect(() => {
     const graph = instance.current;
     if (!graph) return;
     graph.elements().unselect();
     if (selected) graph.getElementById(selected).select();
-  }, [selected, nodes, edges, cochange, emphasized, theme]);
+  }, [selected, nodes, edges, cochange, emphasized, fileDiff, importDiff, theme]);
 
   return (
     <div

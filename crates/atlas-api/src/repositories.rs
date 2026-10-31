@@ -3,13 +3,14 @@
 use std::path::{Path as FsPath, PathBuf};
 
 use atlas_analysis::{
-    AnalyzeOptions, GraphQuery, file_detail, graph as load_graph, impact as rank_impact,
-    open_repository, overview as load_overview,
+    AnalyzeOptions, DEFAULT_TIMELINE_POINTS, GraphQuery, compare as diff_commits, file_detail,
+    graph as load_graph, impact as rank_impact, open_repository, overview as load_overview,
+    timeline as load_timeline,
 };
 use atlas_model::{
-    AnalyzeRequest, AtlasError, CommitPage, DEFAULT_HISTORY_LIMIT, FileDetail, GraphResponse,
-    ImpactRequest, ImpactResponse, JobResponse, OpenRepositoryRequest, OverviewResponse, RepoPath,
-    RepositoryEntry, RepositoryId,
+    AnalyzeRequest, AtlasError, CommitPage, CompareRequest, CompareResponse, DEFAULT_HISTORY_LIMIT,
+    FileDetail, GraphResponse, ImpactRequest, ImpactResponse, JobResponse, OpenRepositoryRequest,
+    OverviewResponse, RepoPath, RepositoryEntry, RepositoryId, TimelineResponse,
 };
 use axum::Json;
 use axum::extract::rejection::JsonRejection;
@@ -190,6 +191,45 @@ pub async fn impact(
         .write(move |db, config| {
             let repository = found(db.repository(id)?)?;
             rank_impact(db, &repository, &request, config)
+        })
+        .await?;
+    Ok(Json(result))
+}
+
+/// `POST /repositories/:id/compare`
+pub async fn compare(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    body: Result<Json<CompareRequest>, JsonRejection>,
+) -> Result<Json<CompareResponse>, ApiError> {
+    let id = parse_id(&id)?;
+    let request = json_body(body)?;
+    let result = state
+        .write(move |db, config| {
+            let repository = found(db.repository(id)?)?;
+            diff_commits(db, &repository, &request, config)
+        })
+        .await?;
+    Ok(Json(result))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TimelineParams {
+    points: Option<u32>,
+}
+
+/// `GET /repositories/:id/timeline?points=`
+pub async fn timeline(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(params): Query<TimelineParams>,
+) -> Result<Json<TimelineResponse>, ApiError> {
+    let id = parse_id(&id)?;
+    let points = params.points.unwrap_or(DEFAULT_TIMELINE_POINTS);
+    let result = state
+        .write(move |db, config| {
+            let repository = found(db.repository(id)?)?;
+            load_timeline(db, &repository, points, config)
         })
         .await?;
     Ok(Json(result))

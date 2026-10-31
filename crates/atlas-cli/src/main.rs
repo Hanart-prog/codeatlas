@@ -1,10 +1,12 @@
 //! The `codeatlas` command. Results go to stdout and diagnostics to stderr.
 
 mod cli;
+mod compare;
 mod graph;
 mod history;
 mod impact;
 mod serve;
+mod timeline;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -58,7 +60,8 @@ fn run(cli: Cli) -> Result<(), AtlasError> {
         Command::Overview(args) => history::overview(args, &data_dir),
         Command::Graph(args) => graph::run(args, &config, &data_dir),
         Command::Impact(args) => impact::run(args, &config, &data_dir),
-        Command::Compare(_) => planned("`codeatlas compare`", 4),
+        Command::Compare(args) => compare::run(args, &config, &data_dir),
+        Command::Timeline(args) => timeline::run(args, &config, &data_dir),
         Command::Backtest(_) => planned("`codeatlas backtest`", 5),
         Command::Report(_) => planned("`codeatlas report`", 6),
         Command::Demo => planned("`codeatlas demo`", 6),

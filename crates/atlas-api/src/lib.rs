@@ -126,6 +126,8 @@ pub fn router(state: AppState) -> Router {
         .route("/repositories/{id}/graph", get(repositories::graph))
         .route("/repositories/{id}/files", get(repositories::file))
         .route("/repositories/{id}/impact", post(repositories::impact))
+        .route("/repositories/{id}/compare", post(repositories::compare))
+        .route("/repositories/{id}/timeline", get(repositories::timeline))
         .route("/jobs/{id}", get(jobs::get_job))
         .fallback(not_found)
         .method_not_allowed_fallback(method_not_allowed)

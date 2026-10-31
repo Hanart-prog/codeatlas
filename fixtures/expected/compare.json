@@ -1,0 +1,53 @@
+{
+  "_comment": "Worked out by hand from the commit list in fixtures/generator/src/lib.rs. Do not regenerate from engine output. Metrics are [before, after] for in-degree, out-degree and transitive dependents. Only files where one differs appear.",
+  "cases": [
+    {
+      "name": "dependency addition and a new cycle, across a rename",
+      "base": "Add billing",
+      "target": "Introduce session and token cycle",
+      "relation": "forward",
+      "files": [6, 6],
+      "imports": [4, 6],
+      "cycles": [0, 1],
+      "added_files": [],
+      "removed_files": [],
+      "renamed_files": [["src/users/profile.ts", "src/users/account.ts"]],
+      "added_imports": [
+        ["src/api/routes.ts", "src/billing/invoice.ts"],
+        ["src/auth/token.ts", "src/auth/session.ts"]
+      ],
+      "removed_imports": [],
+      "new_cycles": [["src/auth/session.ts", "src/auth/token.ts"]],
+      "resolved_cycles": [],
+      "metric_changes": [
+        { "path": "src/auth/session.ts", "in": [3, 4], "out": [1, 1], "dependents": [3, 4] },
+        { "path": "src/billing/invoice.ts", "in": [0, 1], "out": [1, 1], "dependents": [0, 1] },
+        { "path": "src/api/routes.ts", "in": [0, 0], "out": [1, 2], "dependents": [0, 0] },
+        { "path": "src/auth/token.ts", "in": [1, 1], "out": [0, 1], "dependents": [4, 4] }
+      ]
+    },
+    {
+      "name": "dependency removal, a deleted file and a resolved cycle",
+      "base": "Introduce session and token cycle",
+      "target": "Break session and token cycle",
+      "relation": "forward",
+      "files": [6, 6],
+      "imports": [6, 4],
+      "cycles": [1, 0],
+      "added_files": ["src/billing/tax.ts"],
+      "removed_files": ["tests/auth.test.ts"],
+      "renamed_files": [],
+      "added_imports": [],
+      "removed_imports": [
+        ["src/auth/token.ts", "src/auth/session.ts"],
+        ["tests/auth.test.ts", "src/auth/session.ts"]
+      ],
+      "new_cycles": [],
+      "resolved_cycles": [["src/auth/session.ts", "src/auth/token.ts"]],
+      "metric_changes": [
+        { "path": "src/auth/session.ts", "in": [4, 2], "out": [1, 1], "dependents": [4, 2] },
+        { "path": "src/auth/token.ts", "in": [1, 1], "out": [1, 0], "dependents": [4, 3] }
+      ]
+    }
+  ]
+}

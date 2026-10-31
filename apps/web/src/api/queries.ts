@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import type { CompareRequest } from "@/types/generated/CompareRequest";
 import type { ImpactRequest } from "@/types/generated/ImpactRequest";
 import type { JobResponse } from "@/types/generated/JobResponse";
 
@@ -12,7 +13,9 @@ import {
   fetchJob,
   fetchOverview,
   fetchRepositories,
+  fetchTimeline,
   openRepository,
+  runCompare,
   runImpact,
   startAnalysis,
 } from "./client";
@@ -58,6 +61,21 @@ export function useGraph(id: number | undefined, filter: GraphFilter) {
 export function useImpact() {
   return useMutation({
     mutationFn: ({ id, request }: { id: number; request: ImpactRequest }) => runImpact(id, request),
+  });
+}
+
+export function useTimeline(id: number | undefined) {
+  return useQuery({
+    queryKey: ["timeline", id],
+    queryFn: ({ signal }) => fetchTimeline(id as number, signal),
+    enabled: id !== undefined,
+    retry: false,
+  });
+}
+
+export function useCompare() {
+  return useMutation({
+    mutationFn: ({ id, request }: { id: number; request: CompareRequest }) => runCompare(id, request),
   });
 }
 

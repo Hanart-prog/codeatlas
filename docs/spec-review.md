@@ -49,6 +49,10 @@ The fixture would pass while a real repository produced a sparse graph, leaving 
 
 ### 4. Impact scoring is underspecified and structurally favours static edges
 
+- Section 9 asks for best-effort rename resolution without saying how, and a first-parent lineage cannot relate commits on different lines. **Resolved in Phase 4:** combine a tree diff with first-parent identity replay ([ADR 12](decisions/0012-compare-trees-directly.md)).
+- Section 9 says to show why a metric may be incomparable but gives no rule. **Resolved in Phase 4:** imports from files that did not parse cleanly are marked `uncertain`, and notes cover `tsconfig.json`, parsing, resolution and commit order.
+- Section 9 compares cycles by member set, which reports a cycle gaining one file as two unrelated events. **Resolved in Phase 4:** exact sets still decide unchanged cycles, and leftovers sharing members are paired as a changed cycle.
+- The specification has no timeline. **Added in Phase 4:** it answers which two commits are worth comparing, and it uses only existing snapshots.
 - Section 8 gives `static_score = 1 / distance` without saying how to combine several selected files. **Resolved in Phase 3:** use the minimum distance across selected files, matching `max_over_selected` for history.
 - With weights 0.60 and 0.40, any direct importer with no history (0.60) outranks a file with `P = 1.0` and no import (0.40). Keep the weights as specified, and use the Phase 5 backtest to report how alternatives perform.
 - Conditional probability inflates files that change constantly, such as barrels and changelogs. **Resolved in Phase 3:** base rate and lift are shown for explanation only, and a low lift adds a caveat.

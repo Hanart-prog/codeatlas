@@ -59,6 +59,44 @@ test("rank impact as of a historical commit", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("compare two commits and see a cycle appear", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(String(error)));
+
+  await page.goto("/");
+  await page.getByLabel(/Absolute path/).fill(fixture());
+  await page.getByRole("button", { name: "Analyze" }).click();
+  await expect(page.getByRole("cell", { name: "src/billing/invoice.ts" })).toBeVisible({ timeout: 15_000 });
+
+  await page.getByRole("link", { name: /Time Machine/ }).click();
+  const commit = async (subject: RegExp) =>
+    (await page.getByLabel("Before").getByRole("option", { name: subject }).getAttribute("value")) as string;
+
+  await page.getByLabel("Before").selectOption(await commit(/Add billing/));
+  await page.getByLabel("After").selectOption(await commit(/Introduce session and token cycle/));
+  await page.getByRole("button", { name: "Compare" }).click();
+
+  await expect(page.getByText("New cycles (1)")).toBeVisible();
+  await expect(page.getByText("Added imports (2)")).toBeVisible();
+  await expect(page.getByText("Renamed files (1)")).toBeVisible();
+  await expect(page.locator("canvas").first()).toBeVisible();
+  await expect(page.getByRole("row", { name: /Imports between them/ }).getByText("+2")).toBeVisible();
+
+  await page.getByRole("button", { name: "src/auth/session.ts" }).first().click();
+  await expect(page.getByText("3 → 4").first()).toBeVisible();
+
+  await page.getByLabel("Before").selectOption(await commit(/Introduce session and token cycle/));
+  await page.getByLabel("After").selectOption(await commit(/Break session and token cycle/));
+  await page.getByRole("button", { name: "Compare" }).click();
+  await expect(page.getByText("Resolved cycles (1)")).toBeVisible();
+  await expect(page.getByText("Removed imports (2)")).toBeVisible();
+
+  await expect(page.getByText("13 of 13 commits")).toBeVisible();
+  await expect(page.getByRole("img", { name: /^Import cycles by commit/ })).toBeVisible();
+
+  expect(errors).toEqual([]);
+});
+
 test("the content security policy allows the app to run", async ({ page }) => {
   const response = await page.goto("/");
   expect(response?.headers()["content-security-policy"]).toContain("default-src 'self'");

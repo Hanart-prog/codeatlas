@@ -1,0 +1,13 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 15f1cf51dbbae71e2a6b3f1647376c0d3f1ac5240b8075f79bf844ae71dfba9b # shrinks to a = [(0, 0)]
+cc bdc09fc2d86d96147a656341bf072b10aaf6b9882ede24c5b23fd2828cd94654 # shrinks to a = [], b = [(0, 0)]
+cc a898720f1f373ad10a1f87c8cc2341cee10ffbe8987a785c6fb603291feed7b0 # shrinks to a = [(0, 0)], b = []
+cc e1b15dad02590082b83bfa0414f729d9b10a04acc9fdec5c2201fd4589d4ee43 # shrinks to a = [], b = [(2, 0), (0, 0), (0, 2), (4, 4)]
+cc 939c5b877c834a90ada7415e7d3f07c27c397901b8f4e84a6dcde2c4df5f2dd5 # shrinks to a = [(1, 1), (4, 0), (0, 4)], b = [(1, 2), (4, 4), (2, 1)]
+cc 234fb5ba7ccb29ef24892cbd74aea8155b9f3c21ee43ed82260207f4ef3a8ee0 # shrinks to a = [(1, 4), (0, 1)], b = [(1, 4)]
+cc 929e7b824ade39866642490ab20df909f6bc83841a0c222059ddf7e5dbdbd6a9 # shrinks to a = [(0, 2), (2, 5)], b = [(2, 5)]

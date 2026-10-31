@@ -77,7 +77,8 @@ fn help_documents_the_whole_interface_and_its_safety_constraints() {
     assert!(output.status.success());
     let help = String::from_utf8(output.stdout).unwrap();
     for command in [
-        "analyze", "overview", "graph", "impact", "compare", "backtest", "report", "serve", "demo",
+        "analyze", "overview", "graph", "impact", "compare", "timeline", "backtest", "report",
+        "serve", "demo",
     ] {
         assert!(help.contains(command), "missing {command}");
     }
@@ -96,11 +97,7 @@ fn version_matches_the_package() {
 
 #[test]
 fn unbuilt_commands_fail_and_name_their_phase() {
-    let cases: [(&[&str], &str); 4] = [
-        (
-            &["compare", "/nonexistent", "--base", "a", "--target", "b"],
-            "Phase 4",
-        ),
+    let cases: [(&[&str], &str); 3] = [
         (&["backtest", "/nonexistent"], "Phase 5"),
         (&["report", "/nonexistent"], "Phase 6"),
         (&["demo"], "Phase 6"),
@@ -390,4 +387,58 @@ fn impact_rejects_a_file_missing_at_the_cutoff() {
             .unwrap()
             .contains("does not exist")
     );
+}
+
+fn compare(repo: &Path, data: &Path, args: &[&str]) -> Output {
+    codeatlas()
+        .arg("compare")
+        .arg(repo)
+        .args(args)
+        .arg("--data-dir")
+        .arg(data)
+        .output()
+        .unwrap()
+}
+
+#[test]
+fn compare_diffs_two_commits() {
+    let (repo, data) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    atlas_fixtures::generate_main_fixture(repo.path()).unwrap();
+    assert!(analyze_json(repo.path(), data.path()).status.success());
+
+    let args = ["--base", "HEAD~2", "--target", "HEAD~1", "--format", "json"];
+    let first = compare(repo.path(), data.path(), &args);
+    assert!(first.status.success(), "{first:?}");
+    let parsed: atlas_model::CompareResponse = serde_json::from_slice(&first.stdout).unwrap();
+    assert_eq!(parsed.added_files[0].path.as_str(), "tests/auth.test.ts");
+    assert_eq!(
+        first.stdout,
+        compare(repo.path(), data.path(), &args).stdout,
+        "comparisons must be reproducible"
+    );
+
+    let args = ["--base", "HEAD~3", "--target", "HEAD~2"];
+    let text = compare(repo.path(), data.path(), &args);
+    let stdout = String::from_utf8(text.stdout).unwrap();
+    assert!(
+        stdout.contains("- cycle  src/auth/session.ts, src/auth/token.ts"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("- import src/auth/token.ts -> src/auth/session.ts"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("not in what runs"), "{stdout}");
+}
+
+#[test]
+fn compare_rejects_an_unknown_commit() {
+    let (repo, data) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    atlas_fixtures::generate_main_fixture(repo.path()).unwrap();
+    assert!(analyze_json(repo.path(), data.path()).status.success());
+
+    let args = ["--base", "HEAD", "--target", "no-such-ref"];
+    let output = compare(repo.path(), data.path(), &args);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
 }

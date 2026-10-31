@@ -34,7 +34,6 @@ export const ROUTES: readonly [AppRoute, ...AppRoute[]] = [
     label: "Time Machine",
     icon: GitCompareArrows,
     purpose: "Compare the import graph at two commits: added and removed files, edges and cycles.",
-    plannedPhase: 4,
   },
   {
     id: "backtesting",

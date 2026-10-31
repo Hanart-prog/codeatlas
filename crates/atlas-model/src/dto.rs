@@ -107,7 +107,7 @@ impl AnalysisStatus {
 /// How one file depends on another. These are all static evidence; historical
 /// co-change is deliberately not a variant, because it is correlation rather
 /// than a dependency and is stored and displayed separately.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum DependencyEdgeType {
     /// `import ... from` or a side-effect `import '...'`.

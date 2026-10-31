@@ -55,8 +55,10 @@ pub enum Command {
     Graph(GraphArgs),
     /// Rank files to inspect when changing a file, as of a commit
     Impact(ImpactArgs),
-    /// [Phase 4, not implemented] Diff the architecture of two commits
+    /// Diff the import graphs of two commits
     Compare(CompareArgs),
+    /// Show how the import graph grew, commit by commit
+    Timeline(TimelineArgs),
     /// [Phase 5, not implemented] Evaluate recommendations on later commits
     Backtest(BacktestArgs),
     /// [Phase 6, not implemented] Write a static HTML report
@@ -134,6 +136,18 @@ pub struct ImpactArgs {
 }
 
 #[derive(Debug, Args)]
+pub struct TimelineArgs {
+    /// Analyzed repository
+    pub repo: PathBuf,
+    /// Evenly spaced commits to report
+    #[arg(long, default_value_t = 40)]
+    pub points: u32,
+    /// Output format
+    #[arg(long, value_enum, default_value_t)]
+    pub format: OutputFormat,
+}
+
+#[derive(Debug, Args)]
 pub struct CompareArgs {
     /// Analyzed repository
     pub repo: PathBuf,
@@ -143,6 +157,9 @@ pub struct CompareArgs {
     /// Later commit
     #[arg(long)]
     pub target: String,
+    /// Most entries in each list
+    #[arg(long, default_value_t = 500)]
+    pub limit: u32,
     /// Output format
     #[arg(long, value_enum, default_value_t)]
     pub format: OutputFormat,

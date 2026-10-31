@@ -6,8 +6,8 @@ use std::time::Duration;
 use atlas_api::{AppState, router};
 use atlas_fixtures::generate_main_fixture;
 use atlas_model::{
-    ApiErrorBody, CommitPage, ErrorCode, FileDetail, GraphResponse, ImpactResponse, JobResponse,
-    JobStatus, OverviewResponse, RepositoryEntry,
+    ApiErrorBody, CommitPage, CompareResponse, ErrorCode, FileDetail, GraphResponse,
+    ImpactResponse, JobResponse, JobStatus, OverviewResponse, RepositoryEntry, TimelineResponse,
 };
 use axum::Router;
 use axum::body::Body;
@@ -489,4 +489,74 @@ async fn graph_returns_cochange_only_when_asked() {
         plain.edges.len(),
         "co-change must not become import edges"
     );
+}
+
+#[tokio::test]
+async fn compare_route_diffs_two_commits_and_validates() {
+    let repo = tempfile::tempdir().unwrap();
+    generate_main_fixture(repo.path()).unwrap();
+    let harness = Harness::new();
+    let id = harness.open(repo.path()).await.id.0;
+    harness.analyze(id, "{}").await;
+    let uri = format!("/repositories/{id}/compare");
+
+    let body = r#"{"base":"HEAD~1","target":"HEAD"}"#;
+    let response: CompareResponse = harness
+        .json(Method::POST, &uri, Some(body), StatusCode::OK)
+        .await;
+    assert_eq!(response.counts.added_files, 1);
+    assert_eq!(
+        response.added_files[0].path.as_str(),
+        "src/m\u{f3}dulo uno/\u{ed}ndice.ts"
+    );
+
+    let error: ApiErrorBody = harness
+        .json(
+            Method::POST,
+            &uri,
+            Some(r#"{"base":"HEAD","target":"HEAD","limit":0}"#),
+            StatusCode::BAD_REQUEST,
+        )
+        .await;
+    assert_eq!(error.error.code, ErrorCode::InvalidInput);
+
+    let error: ApiErrorBody = harness
+        .json(
+            Method::POST,
+            &uri,
+            Some(r#"{"base":"HEAD","target":"no-such-ref"}"#),
+            StatusCode::BAD_REQUEST,
+        )
+        .await;
+    assert_eq!(error.error.code, ErrorCode::InvalidInput);
+
+    let error: ApiErrorBody = harness
+        .json(
+            Method::POST,
+            &uri,
+            Some(r#"{"base":"HEAD"}"#),
+            StatusCode::BAD_REQUEST,
+        )
+        .await;
+    assert_eq!(error.error.code, ErrorCode::InvalidInput);
+}
+
+#[tokio::test]
+async fn timeline_route_samples_commits_and_validates() {
+    let repo = tempfile::tempdir().unwrap();
+    generate_main_fixture(repo.path()).unwrap();
+    let harness = Harness::new();
+    let id = harness.open(repo.path()).await.id.0;
+    harness.analyze(id, "{}").await;
+
+    let uri = format!("/repositories/{id}/timeline?points=2");
+    let response: TimelineResponse = harness.json(Method::GET, &uri, None, StatusCode::OK).await;
+    assert_eq!(response.commit_count, 13);
+    assert_eq!(response.points.len(), 2);
+
+    let uri = format!("/repositories/{id}/timeline?points=0");
+    let error: ApiErrorBody = harness
+        .json(Method::GET, &uri, None, StatusCode::BAD_REQUEST)
+        .await;
+    assert_eq!(error.error.code, ErrorCode::InvalidInput);
 }

@@ -12,6 +12,11 @@ use atlas_model::{
     RepositoryEntry, RepositoryId, RunSummary,
 };
 use atlas_model::{
+    ArchitectureSummary, CommitRelation, CompareCounts, CompareRequest, CompareResponse,
+    CycleChange, FileMetricChange, FileRename, ImportChange, RenameEvidence, TimelinePoint,
+    TimelineResponse,
+};
+use atlas_model::{
     CoChangeEdge, CoChangeStats, EvidenceKind, HistoricalEvidence, ImpactRecommendation,
     ImpactRequest, ImpactResponse, SelectedFile, SelectedFileStatus, StaticEvidence,
 };
@@ -38,6 +43,18 @@ fn generated_typescript_is_up_to_date() {
 
     let bindings = [
         binding::<AnalysisRunId>(),
+        binding::<ArchitectureSummary>(),
+        binding::<CommitRelation>(),
+        binding::<CompareCounts>(),
+        binding::<CompareRequest>(),
+        binding::<CompareResponse>(),
+        binding::<CycleChange>(),
+        binding::<RenameEvidence>(),
+        binding::<TimelinePoint>(),
+        binding::<TimelineResponse>(),
+        binding::<FileMetricChange>(),
+        binding::<FileRename>(),
+        binding::<ImportChange>(),
         binding::<AnalysisStatus>(),
         binding::<AnalyzeRequest>(),
         binding::<ApiErrorBody>(),
