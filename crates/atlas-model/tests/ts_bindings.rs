@@ -11,6 +11,10 @@ use atlas_model::{
     JobResponse, JobStatus, Oid, OpenRepositoryRequest, OverviewResponse, RepoPath,
     RepositoryEntry, RepositoryId, RunSummary,
 };
+use atlas_model::{
+    Cycle, FileDetail, GraphEdge, GraphNode, GraphResponse, Language, ParseStatus, ParserCoverage,
+    ResolutionKind, TsconfigStatus, UnresolvedCount, UnresolvedImport, UnresolvedReason,
+};
 use ts_rs::TS;
 
 fn binding<T: TS + 'static>() -> (String, String) {
@@ -51,6 +55,19 @@ fn generated_typescript_is_up_to_date() {
         binding::<JobStatus>(),
         binding::<OpenRepositoryRequest>(),
         binding::<OverviewResponse>(),
+        binding::<Cycle>(),
+        binding::<FileDetail>(),
+        binding::<GraphEdge>(),
+        binding::<GraphNode>(),
+        binding::<GraphResponse>(),
+        binding::<Language>(),
+        binding::<ParseStatus>(),
+        binding::<ParserCoverage>(),
+        binding::<ResolutionKind>(),
+        binding::<TsconfigStatus>(),
+        binding::<UnresolvedCount>(),
+        binding::<UnresolvedImport>(),
+        binding::<UnresolvedReason>(),
         binding::<Oid>(),
         binding::<RepoPath>(),
         binding::<RepositoryEntry>(),

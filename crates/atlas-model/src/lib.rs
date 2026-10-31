@@ -6,6 +6,7 @@
 pub mod config;
 pub mod dto;
 pub mod error;
+pub mod graph;
 pub mod history;
 pub mod ids;
 
@@ -17,6 +18,11 @@ pub use dto::{
     OverviewResponse, RepositoryEntry, RunSummary,
 };
 pub use error::{AtlasError, ErrorCode};
+pub use graph::{
+    Cycle, FileDetail, GraphEdge, GraphNode, GraphResponse, ImportRecord, Language, ParseStatus,
+    ParsedFile, ParserCoverage, ResolutionKind, SnapshotData, SnapshotFile, TsconfigStatus,
+    UnresolvedCount, UnresolvedImport, UnresolvedReason,
+};
 pub use history::{ChangeStatus, ExclusionReason, IndexedHistory};
 pub use ids::{AnalysisRunId, Oid, RepoPath, RepositoryId};
 
@@ -30,7 +36,7 @@ pub const DEFAULT_HISTORY_LIMIT: u32 = 500;
 pub const API_VERSION: &str = "v1";
 
 /// Version of import extraction. Changing it invalidates cached snapshots.
-pub const PARSER_VERSION: u32 = 0;
+pub const PARSER_VERSION: u32 = 1;
 
 /// Version of the analysis algorithms. Changing it invalidates cached analyses.
-pub const ALGORITHM_VERSION: u32 = 1;
+pub const ALGORITHM_VERSION: u32 = 2;

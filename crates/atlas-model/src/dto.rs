@@ -116,6 +116,8 @@ pub enum DependencyEdgeType {
     TypeOnlyImport,
     /// `export ... from`.
     ReExport,
+    /// `import('./literal')`, which may load lazily or never.
+    DynamicImport,
 }
 
 /// Body of `POST /api/v1/repositories/open`.

@@ -5,4 +5,4 @@
  * co-change is deliberately not a variant, because it is correlation rather
  * than a dependency and is stored and displayed separately.
  */
-export type DependencyEdgeType = "static_import" | "type_only_import" | "re_export";
+export type DependencyEdgeType = "static_import" | "type_only_import" | "re_export" | "dynamic_import";

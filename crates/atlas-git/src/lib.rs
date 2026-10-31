@@ -70,6 +70,26 @@ pub struct GitRepository {
     repository: Repository,
 }
 
+/// A regular file in a commit's tree.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TreeFile {
+    /// Path within the tree.
+    pub path: RepoPath,
+    /// Blob holding the content.
+    pub blob: Oid,
+    /// Blob size in bytes.
+    pub size: u64,
+}
+
+/// The regular files of a tree, sorted by path.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TreeListing {
+    /// Files with valid paths.
+    pub files: Vec<TreeFile>,
+    /// Files skipped because their path is not valid UTF-8 or is unsafe.
+    pub unreadable_paths: u32,
+}
+
 /// A first-parent walk from a tip, newest first.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FirstParentHistory {
@@ -274,6 +294,42 @@ impl GitRepository {
         Ok(summary)
     }
 
+    /// Lists the regular files in a commit's tree. Symlinks and submodules are
+    /// left out because they have no source content here.
+    pub fn tree_files(&self, oid: &Oid) -> Result<TreeListing, GitError> {
+        let tree = self.commit(oid)?.tree()?;
+        let mut listing = TreeListing::default();
+        tree.walk(TreeWalkMode::PreOrder, |root, entry| {
+            if entry.kind() != Some(ObjectType::Blob)
+                || entry.filemode() == i32::from(FileMode::Link)
+            {
+                return TreeWalkResult::Ok;
+            }
+            let path = entry
+                .name()
+                .ok()
+                .and_then(|name| format!("{root}{name}").parse::<RepoPath>().ok());
+            match path {
+                Some(path) => listing.files.push(TreeFile {
+                    path,
+                    blob: to_model_oid(entry.id()),
+                    size: self.blob_size(entry.id()),
+                }),
+                None => listing.unreadable_paths += 1,
+            }
+            TreeWalkResult::Ok
+        })?;
+        listing.files.sort_by(|a, b| a.path.cmp(&b.path));
+        Ok(listing)
+    }
+
+    /// Reads a blob from the object database, so that working tree contents and
+    /// content filters play no part.
+    pub fn read_blob(&self, oid: &Oid) -> Result<Vec<u8>, GitError> {
+        let id = git2::Oid::from_str(oid.as_str())?;
+        Ok(self.repository.find_blob(id)?.content().to_vec())
+    }
+
     fn commit(&self, oid: &Oid) -> Result<Commit<'_>, GitError> {
         let id = git2::Oid::from_str(oid.as_str())?;
         Ok(self.repository.find_commit(id)?)
@@ -301,7 +357,9 @@ impl ExclusionRules {
 /// True for the source files CodeAtlas parses.
 pub fn is_typescript(path: &RepoPath) -> bool {
     let path = path.as_str();
-    path.ends_with(".ts") || path.ends_with(".tsx")
+    [".ts", ".tsx", ".mts", ".cts"]
+        .iter()
+        .any(|extension| path.ends_with(extension))
 }
 
 fn to_model_oid(oid: git2::Oid) -> Oid {
