@@ -19,8 +19,11 @@ export class ApiRequestError extends Error {
   }
 }
 
+/** Job responses have an `error` field too, so only a populated object counts. */
 function isErrorBody(value: unknown): value is ApiErrorBody {
-  return typeof value === "object" && value !== null && "error" in value;
+  if (typeof value !== "object" || value === null || !("error" in value)) return false;
+  const { error } = value;
+  return typeof error === "object" && error !== null && "code" in error;
 }
 
 async function send(path: string, init: RequestInit): Promise<{ response: Response; body: unknown }> {

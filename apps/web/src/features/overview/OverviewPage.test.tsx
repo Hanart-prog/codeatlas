@@ -146,24 +146,64 @@ describe("OverviewPage", () => {
     expect(await screen.findByText(/has not been analyzed yet/)).toBeInTheDocument();
   });
 
-  it("opens, analyzes and then shows a repository", async () => {
-    const fetchMock = stubRoutes({
-      "/health": { body: healthyBody },
-      "/repositories/open": { body: repository },
-      "/repositories/1/analyze": { status: 202, body: { id: 1, repository_id: 1, status: "completed", error: null } },
-      "/repositories/1/overview": { body: overview },
-      "/repositories/1/commits": { body: { commits: [], next_cursor: null } },
+  it("waits for the job, then shows the repository", async () => {
+    let jobPolls = 0;
+    const overviewBeforeDone: string[] = [];
+    let analyzing = false;
+    const job = (status: string) => ({ id: 1, repository_id: 1, status, error: null });
+    const routes = stubRoutes({ "/health": { body: healthyBody } });
+    const base = routes.getMockImplementation() as (url: string) => Promise<Response>;
+    routes.mockImplementation((url: string, init?: RequestInit) => {
+      const respond = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
+      if (url.endsWith("/repositories/open")) {
+        expect(init).toMatchObject({ method: "POST", body: JSON.stringify({ path: "/work/app" }) });
+        return respond(repository);
+      }
+      if (url.endsWith("/analyze")) {
+        analyzing = true;
+        return respond(job("queued"), 202);
+      }
+      if (url.endsWith("/jobs/1")) {
+        jobPolls += 1;
+        if (jobPolls < 2) return respond(job("running"));
+        analyzing = false;
+        return respond(job("completed"));
+      }
+      if (url.endsWith("/repositories")) return respond(analyzing || jobPolls ? [repository] : []);
+      if (url.endsWith("/overview")) {
+        if (analyzing) overviewBeforeDone.push(url);
+        return analyzing
+          ? respond({ error: { code: "not_found", message: "not analyzed", details: null } }, 404)
+          : respond(overview);
+      }
+      if (url.includes("/commits")) return respond({ commits: [], next_cursor: null });
+      return base(url);
     });
     renderWithQuery(<Page />);
 
     await userEvent.type(screen.getByLabelText(/Absolute path/), "/work/app");
-    fetchMock.mockClear();
-    stubRoutesRepositoryList(fetchMock);
     await userEvent.click(screen.getByRole("button", { name: "Analyze" }));
 
-    expect(await screen.findByText("1,234")).toBeInTheDocument();
-    const open = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/repositories/open"));
-    expect(open?.[1]).toMatchObject({ method: "POST", body: JSON.stringify({ path: "/work/app" }) });
+    expect(await screen.findByRole("button", { name: "Analyzing…" })).toBeDisabled();
+    expect(await screen.findByText("1,234", {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(jobPolls).toBe(2);
+    expect(overviewBeforeDone).toEqual([]);
+  });
+
+  it("keeps a failed job's reason on screen when the repository list changes", async () => {
+    stubRoutes({
+      "/health": { body: healthyBody },
+      "/repositories": { body: [repository] },
+      "/repositories/open": { body: repository },
+      "/repositories/1/analyze": {
+        status: 202,
+        body: { id: 1, repository_id: 1, status: "failed", error: "no-such-branch does not name a commit" },
+      },
+    });
+    renderWithQuery(<Page />);
+    await screen.findByText(/has not been analyzed yet/);
+    await userEvent.click(screen.getByRole("button", { name: "Analyze" }));
+    expect(await screen.findByText("no-such-branch does not name a commit")).toBeInTheDocument();
   });
 
   it("shows why an analysis failed", async () => {
@@ -177,13 +217,3 @@ describe("OverviewPage", () => {
     expect(await screen.findByText("/x is not a Git repository")).toBeInTheDocument();
   });
 });
-
-/** After opening, the repository list includes the new repository. */
-function stubRoutesRepositoryList(fetchMock: ReturnType<typeof stubRoutes>) {
-  const original = fetchMock.getMockImplementation();
-  fetchMock.mockImplementation((url: string) =>
-    url.endsWith("/repositories")
-      ? Promise.resolve(new Response(JSON.stringify([repository])))
-      : (original as (url: string) => Promise<Response>)(url),
-  );
-}

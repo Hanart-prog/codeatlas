@@ -85,7 +85,7 @@ function RepositorySection({ repository, select }: SelectedRepository) {
           <CardTitle>Repository</CardTitle>
         </CardHeader>
         <CardContent>
-          <OpenRepositoryForm key={repository?.id ?? "none"} initialPath={repository?.path ?? ""} onAnalyzed={select} />
+          <OpenRepositoryForm initialPath={repository?.path ?? ""} onAnalyzed={select} />
           {notAnalyzed && <p className="mt-3 text-sm text-muted-foreground">This repository has not been analyzed yet.</p>}
           {overview.error && !notAnalyzed && (
             <p role="alert" className="mt-3 text-sm text-destructive">

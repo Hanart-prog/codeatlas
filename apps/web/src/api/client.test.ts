@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { healthyBody, stubFetch } from "@/test/render";
 
-import { ApiRequestError, fetchHealth, fetchOverview, openRepository } from "./client";
+import { ApiRequestError, fetchHealth, fetchOverview, openRepository, startAnalysis } from "./client";
 
 describe("fetchHealth", () => {
   it("requests the versioned health route", async () => {
@@ -36,6 +36,13 @@ describe("fetchHealth", () => {
 });
 
 describe("repository requests", () => {
+  it("treats a job's empty error field as a normal response", async () => {
+    const fetchMock = stubFetch(200, {});
+    const job = { id: 1, repository_id: 1, status: "queued", error: null };
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(JSON.stringify(job), { status: 202 })));
+    await expect(startAnalysis(1)).resolves.toEqual(job);
+  });
+
   it("posts JSON when opening a repository", async () => {
     const fetchMock = stubFetch(200, {});
     fetchMock.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ id: 1 }))));

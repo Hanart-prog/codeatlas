@@ -4,12 +4,14 @@ import { useAnalyzeRepository } from "@/api/queries";
 import { Button } from "@/components/ui/button";
 
 interface Props {
+  /** Shown until the user types. Not a remount key: remounting mid-analysis loses its state. */
   initialPath?: string;
   onAnalyzed: (id: number) => void;
 }
 
 export function OpenRepositoryForm({ initialPath = "", onAnalyzed }: Props) {
-  const [path, setPath] = useState(initialPath);
+  const [edited, setEdited] = useState<string>();
+  const path = edited ?? initialPath;
   const analysis = useAnalyzeRepository(onAnalyzed);
 
   function submit(event: FormEvent) {
@@ -26,7 +28,7 @@ export function OpenRepositoryForm({ initialPath = "", onAnalyzed }: Props) {
         <input
           id="repository-path"
           value={path}
-          onChange={(event) => setPath(event.target.value)}
+          onChange={(event) => setEdited(event.target.value)}
           placeholder="/path/to/repository"
           spellCheck={false}
           autoComplete="off"
