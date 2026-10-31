@@ -9,6 +9,10 @@ publish.workspace = true
 
 [dependencies]
 atlas-model.workspace = true
+petgraph.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
 
 [lints]
 workspace = true

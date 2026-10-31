@@ -9,6 +9,12 @@ publish.workspace = true
 
 [dependencies]
 atlas-model.workspace = true
+serde_json.workspace = true
+tree-sitter.workspace = true
+tree-sitter-typescript.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
 
 [lints]
 workspace = true
