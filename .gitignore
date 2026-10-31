@@ -1,0 +1,19 @@
+# Rust
+/target/
+
+# Frontend
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Local CodeAtlas data
+.codeatlas/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/

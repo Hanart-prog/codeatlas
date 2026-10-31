@@ -1,0 +1,49 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "fixtures/generator"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/Hanart-prog/codeatlas"
+publish = false
+
+[workspace.dependencies]
+atlas-analysis = { path = "crates/atlas-analysis" }
+atlas-api = { path = "crates/atlas-api" }
+atlas-fixtures = { path = "fixtures/generator" }
+atlas-git = { path = "crates/atlas-git" }
+atlas-model = { path = "crates/atlas-model" }
+atlas-storage = { path = "crates/atlas-storage" }
+
+axum = "0.8.9"
+clap = { version = "4.6.7", features = ["derive", "env"] }
+directories = "6.0.0"
+git2 = { version = "0.21.0", default-features = false, features = ["vendored-libgit2"] }
+globset = "0.4.21"
+http-body-util = "0.1"
+proptest = "1.12.0"
+rusqlite = { version = "0.41.1", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11.1"
+tempfile = "3"
+thiserror = "2.0.21"
+tokio = { version = "1.54.1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+toml = "1.1.8"
+tower = { version = "0.5.3", features = ["util"] }
+tower-http = { version = "0.7.1", features = ["cors", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+ts-rs = { version = "12.0.1", features = ["no-serde-warnings"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[profile.release]
+lto = "thin"
