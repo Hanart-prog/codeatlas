@@ -1,0 +1,25 @@
+{
+  "_comment": "Worked out by hand from the commit list in fixtures/generator/src/lib.rs. Do not regenerate from engine output.",
+  "commit_count": 13,
+  "merge_commit_count": 1,
+  "rename_count": 1,
+  "tip_file_count": 13,
+  "tip_typescript_file_count": 8,
+  "changed_file_count": 10,
+  "unreadable_path_count": 1,
+  "exclusions": { "binary": 1, "rule": 2, "symlink": 1 },
+  "first_subject": "Create auth, API and users modules",
+  "last_subject": "Add vendored output and odd paths",
+  "churn": [
+    { "path": "src/billing/invoice.ts", "exists_at_tip": true, "commit_count": 5, "added_lines": 13, "deleted_lines": 0, "previous_paths": [] },
+    { "path": "src/auth/session.ts", "exists_at_tip": true, "commit_count": 4, "added_lines": 16, "deleted_lines": 0, "previous_paths": [] },
+    { "path": "src/api/routes.ts", "exists_at_tip": true, "commit_count": 3, "added_lines": 10, "deleted_lines": 0, "previous_paths": [] },
+    { "path": "src/auth/token.ts", "exists_at_tip": true, "commit_count": 3, "added_lines": 7, "deleted_lines": 1, "previous_paths": [] },
+    { "path": "src/users/account.ts", "exists_at_tip": true, "commit_count": 3, "added_lines": 7, "deleted_lines": 0, "previous_paths": ["src/users/profile.ts"] },
+    { "path": "tests/auth.test.ts", "exists_at_tip": false, "commit_count": 2, "added_lines": 4, "deleted_lines": 4, "previous_paths": [] },
+    { "path": "README.md", "exists_at_tip": true, "commit_count": 1, "added_lines": 3, "deleted_lines": 0, "previous_paths": [] },
+    { "path": "src/billing/tax.ts", "exists_at_tip": true, "commit_count": 1, "added_lines": 6, "deleted_lines": 0, "previous_paths": [] },
+    { "path": "src/módulo uno/índice.ts", "exists_at_tip": true, "commit_count": 1, "added_lines": 2, "deleted_lines": 0, "previous_paths": [] },
+    { "path": "tests/auth.test.ts", "exists_at_tip": true, "commit_count": 1, "added_lines": 3, "deleted_lines": 0, "previous_paths": [] }
+  ]
+}
