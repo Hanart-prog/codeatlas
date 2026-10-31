@@ -2,13 +2,14 @@ import cytoscape from "cytoscape";
 import { useEffect, useRef } from "react";
 
 import type { Theme } from "@/app/theme";
+import type { CoChangeEdge } from "@/types/generated/CoChangeEdge";
 import type { GraphEdge } from "@/types/generated/GraphEdge";
 import type { GraphNode } from "@/types/generated/GraphNode";
 
 /** Canvas colors, as Cytoscape cannot read the CSS theme variables. */
 const COLORS = {
-  dark: { node: "#94a3b8", cycle: "#f87171", label: "#e2e8f0", edge: "#64748b", selected: "#5eead4" },
-  light: { node: "#64748b", cycle: "#dc2626", label: "#1e293b", edge: "#94a3b8", selected: "#0f766e" },
+  dark: { node: "#94a3b8", cycle: "#f87171", label: "#e2e8f0", edge: "#64748b", selected: "#5eead4", cochange: "#fbbf24" },
+  light: { node: "#64748b", cycle: "#dc2626", label: "#1e293b", edge: "#94a3b8", selected: "#0f766e", cochange: "#b45309" },
 } as const;
 
 const LINE_STYLES: Record<GraphEdge["edge_type"], "solid" | "dashed" | "dotted"> = {
@@ -25,26 +26,41 @@ function fileName(path: string): string {
 interface Props {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  /** Correlation from history, drawn apart from imports. */
+  cochange?: CoChangeEdge[];
+  /** Files drawn with a selection ring without being the selected file. */
+  emphasized?: string[];
   selected: string | undefined;
   onSelect: (path: string | undefined) => void;
   theme: Theme;
 }
 
-export function GraphCanvas({ nodes, edges, selected, onSelect, theme }: Props) {
+const NONE: never[] = [];
+
+export function GraphCanvas({
+  nodes,
+  edges,
+  cochange = NONE,
+  emphasized = NONE,
+  selected,
+  onSelect,
+  theme,
+}: Props) {
   const container = useRef<HTMLDivElement>(null);
   const instance = useRef<cytoscape.Core | null>(null);
 
   useEffect(() => {
     if (!container.current) return;
     const colors = COLORS[theme];
+    const known = new Set(nodes.map((node) => node.path));
     const graph = cytoscape({
       container: container.current,
       elements: [
         ...nodes.map((node) => ({
           data: { id: node.path, label: fileName(node.path), degree: node.in_degree + node.out_degree },
-          classes: node.in_cycle ? "cycle" : "",
+          classes: [node.in_cycle ? "cycle" : "", emphasized.includes(node.path) ? "emphasized" : ""].join(" "),
         })),
-        ...edges.map((edge) => ({
+        ...edges.filter((edge) => known.has(edge.source) && known.has(edge.target)).map((edge) => ({
           data: {
             id: `${edge.source}->${edge.target}:${edge.edge_type}`,
             source: edge.source,
@@ -52,6 +68,15 @@ export function GraphCanvas({ nodes, edges, selected, onSelect, theme }: Props) 
             line: LINE_STYLES[edge.edge_type],
             arrow: edge.edge_type === "re_export" ? "triangle-tee" : "triangle",
           },
+        })),
+        ...cochange.map((pair) => ({
+          data: {
+            id: `cochange:${pair.file_a}|${pair.file_b}`,
+            source: pair.file_a,
+            target: pair.file_b,
+            shared: pair.shared_commit_count,
+          },
+          classes: "cochange",
         })),
       ],
       style: [
@@ -69,6 +94,7 @@ export function GraphCanvas({ nodes, edges, selected, onSelect, theme }: Props) 
           },
         },
         { selector: "node.cycle", style: { "background-color": colors.cycle, shape: "diamond" } },
+        { selector: "node.emphasized", style: { "border-width": 3, "border-color": colors.selected } },
         { selector: "node:selected", style: { "border-width": 3, "border-color": colors.selected } },
         {
           selector: "edge",
@@ -79,6 +105,21 @@ export function GraphCanvas({ nodes, edges, selected, onSelect, theme }: Props) 
             "target-arrow-color": colors.edge,
             "target-arrow-shape": "data(arrow)" as "triangle",
             "curve-style": "bezier",
+          },
+        },
+        {
+          selector: "edge.cochange",
+          style: {
+            width: "mapData(shared, 3, 20, 2, 6)",
+            "line-color": colors.cochange,
+            "line-style": "solid",
+            "target-arrow-shape": "none",
+            label: "data(shared)",
+            color: colors.cochange,
+            "font-size": 10,
+            "text-background-color": theme === "dark" ? "#14181f" : "#ffffff",
+            "text-background-opacity": 1,
+            "text-background-padding": "2px",
           },
         },
       ],
@@ -94,20 +135,20 @@ export function GraphCanvas({ nodes, edges, selected, onSelect, theme }: Props) 
       instance.current = null;
       graph.destroy();
     };
-  }, [nodes, edges, theme, onSelect]);
+  }, [nodes, edges, cochange, emphasized, theme, onSelect]);
 
   useEffect(() => {
     const graph = instance.current;
     if (!graph) return;
     graph.elements().unselect();
     if (selected) graph.getElementById(selected).select();
-  }, [selected, nodes, edges, theme]);
+  }, [selected, nodes, edges, cochange, emphasized, theme]);
 
   return (
     <div
       ref={container}
       role="img"
-      aria-label={`Import graph of ${nodes.length} files and ${edges.length} imports. The file list has the same content.`}
+      aria-label={`Import graph of ${nodes.length} files and ${edges.length} imports. The text beside it has the same content.`}
       className="h-[520px] w-full"
     />
   );

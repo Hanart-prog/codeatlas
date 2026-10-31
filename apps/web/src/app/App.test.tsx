@@ -26,9 +26,9 @@ describe("App", () => {
   it("says plainly when a section is not built", async () => {
     stubFetch(200, healthyBody);
     renderWithQuery(<App />);
-    await userEvent.click(screen.getByRole("link", { name: /Change Impact/ }));
-    expect(await screen.findByRole("heading", { name: "Change Impact" })).toBeInTheDocument();
-    expect(screen.getByText(/planned for Phase 3/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("link", { name: /Time Machine/ }));
+    expect(await screen.findByRole("heading", { name: "Time Machine" })).toBeInTheDocument();
+    expect(screen.getByText(/planned for Phase 4/)).toBeInTheDocument();
   });
 
   it("falls back to the overview for unknown routes", () => {

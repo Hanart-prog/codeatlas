@@ -37,6 +37,7 @@ fn query(git_ref: Option<String>) -> GraphQuery {
         git_ref,
         directory: None,
         limit: 1000,
+        include_cochange: false,
     }
 }
 
@@ -343,6 +344,7 @@ fn directory_and_limit_filter_nodes_but_not_totals_or_degrees() {
         git_ref: None,
         directory: Some("src/auth".to_owned()),
         limit: 1,
+        include_cochange: false,
     };
     let response = graph(&database, &repository, &query, &config).unwrap();
     assert_eq!(response.nodes.len(), 1);

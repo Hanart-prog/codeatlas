@@ -3,12 +3,13 @@
 use std::path::{Path as FsPath, PathBuf};
 
 use atlas_analysis::{
-    AnalyzeOptions, GraphQuery, file_detail, graph as load_graph, open_repository,
-    overview as load_overview,
+    AnalyzeOptions, GraphQuery, file_detail, graph as load_graph, impact as rank_impact,
+    open_repository, overview as load_overview,
 };
 use atlas_model::{
     AnalyzeRequest, AtlasError, CommitPage, DEFAULT_HISTORY_LIMIT, FileDetail, GraphResponse,
-    JobResponse, OpenRepositoryRequest, OverviewResponse, RepoPath, RepositoryEntry, RepositoryId,
+    ImpactRequest, ImpactResponse, JobResponse, OpenRepositoryRequest, OverviewResponse, RepoPath,
+    RepositoryEntry, RepositoryId,
 };
 use axum::Json;
 use axum::extract::rejection::JsonRejection;
@@ -124,6 +125,7 @@ pub struct GraphParams {
     git_ref: Option<String>,
     directory: Option<String>,
     limit: Option<u32>,
+    include: Option<String>,
 }
 
 /// `GET /repositories/:id/graph?ref=&directory=&limit=`
@@ -143,6 +145,7 @@ pub async fn graph(
                     .limit
                     .unwrap_or(DEFAULT_GRAPH_NODES)
                     .clamp(1, config.limits.max_graph_nodes),
+                include_cochange: params.include.as_deref() == Some("cochange"),
             };
             load_graph(db, &repository, &query, config)
         })
@@ -170,6 +173,23 @@ pub async fn file(
         .write(move |db, config| {
             let repository = found(db.repository(id)?)?;
             file_detail(db, &repository, params.git_ref, &path, config)
+        })
+        .await?;
+    Ok(Json(result))
+}
+
+/// `POST /repositories/:id/impact`
+pub async fn impact(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    body: Result<Json<ImpactRequest>, JsonRejection>,
+) -> Result<Json<ImpactResponse>, ApiError> {
+    let id = parse_id(&id)?;
+    let request = json_body(body)?;
+    let result = state
+        .write(move |db, config| {
+            let repository = found(db.repository(id)?)?;
+            rank_impact(db, &repository, &request, config)
         })
         .await?;
     Ok(Json(result))

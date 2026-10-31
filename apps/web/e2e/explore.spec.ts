@@ -32,6 +32,33 @@ test("analyze a repository and explore its graph at two commits", async ({ page 
   expect(errors).toEqual([]);
 });
 
+test("rank impact as of a historical commit", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(String(error)));
+
+  await page.goto("/");
+  await page.getByLabel(/Absolute path/).fill(fixture());
+  await page.getByRole("button", { name: "Analyze" }).click();
+  await expect(page.getByRole("cell", { name: "src/billing/invoice.ts" })).toBeVisible({ timeout: 15_000 });
+
+  await page.getByRole("link", { name: /Change Impact/ }).click();
+  await page.getByLabel("Add a file").fill("src/auth/session.ts");
+  await page.getByRole("button", { name: "Add" }).click();
+  await page.getByRole("button", { name: "Rank files" }).click();
+
+  const first = page.getByRole("listitem").filter({ hasText: "src/billing/invoice.ts" });
+  await expect(first.getByText("0.900")).toBeVisible();
+  await expect(first.getByText("3 of 4 commits")).toBeVisible();
+  await expect(page.getByText("not a probability of failure")).toBeVisible();
+
+  const earlier = page.getByRole("option", { name: /Prorate expired sessions/ });
+  await page.getByLabel("As of commit").selectOption((await earlier.getAttribute("value")) as string);
+  await page.getByRole("button", { name: "Rank files" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "src/api/routes.ts" }).getByText("#1")).toBeVisible();
+
+  expect(errors).toEqual([]);
+});
+
 test("the content security policy allows the app to run", async ({ page }) => {
   const response = await page.goto("/");
   expect(response?.headers()["content-security-policy"]).toContain("default-src 'self'");

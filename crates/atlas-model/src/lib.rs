@@ -9,6 +9,7 @@ pub mod error;
 pub mod graph;
 pub mod history;
 pub mod ids;
+pub mod impact;
 
 pub use config::{AnalysisConfig, AtlasConfig, Limits, ServerConfig, StorageConfig};
 pub use dto::{
@@ -25,6 +26,10 @@ pub use graph::{
 };
 pub use history::{ChangeStatus, ExclusionReason, IndexedHistory};
 pub use ids::{AnalysisRunId, Oid, RepoPath, RepositoryId};
+pub use impact::{
+    CoChangeEdge, CoChangeStats, EvidenceKind, HistoricalEvidence, ImpactRecommendation,
+    ImpactRequest, ImpactResponse, SelectedFile, SelectedFileStatus, StaticEvidence,
+};
 
 /// Version of the application, reported by the CLI and `/health`.
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -39,4 +44,4 @@ pub const API_VERSION: &str = "v1";
 pub const PARSER_VERSION: u32 = 1;
 
 /// Version of the analysis algorithms. Changing it invalidates cached analyses.
-pub const ALGORITHM_VERSION: u32 = 2;
+pub const ALGORITHM_VERSION: u32 = 3;

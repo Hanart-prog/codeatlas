@@ -41,6 +41,7 @@ const graph: GraphResponse = {
   nodes: [node("src/a.ts", true), node("src/b.ts", true), node("src/c.ts")],
   edges: [edge("src/a.ts", "src/b.ts", "static_import"), edge("src/b.ts", "src/a.ts", "type_only_import")],
   cycles: [{ members: ["src/a.ts", "src/b.ts"], type_only: true }],
+  cochange: [],
   coverage: {
     parsed_file_count: 3,
     partial_file_count: 0,
@@ -106,7 +107,7 @@ describe("ExplorerPage", () => {
     renderWithQuery(<ExplorerPage repository={repository} theme="dark" />);
     await screen.findByText("3 of 9 files");
     expect(screen.getByText("A → B: A imports B")).toBeInTheDocument();
-    expect(screen.getByText("Edges show source imports, not what runs.")).toBeInTheDocument();
+    expect(screen.getByText(/Edges show source imports, not what runs/)).toBeInTheDocument();
   });
 
   it("hides type imports on request without refetching", async () => {
@@ -170,5 +171,27 @@ describe("ExplorerPage", () => {
     stubRoutes({ "/health": { body: healthyBody } });
     renderWithQuery(<ExplorerPage repository={repository} theme="dark" />);
     expect(await screen.findByText(/Analyze this repository from the Overview/)).toBeInTheDocument();
+  });
+
+  it("requests co-change on demand and shows it apart from imports", async () => {
+    const pair = {
+      file_a: "src/a.ts",
+      file_b: "src/c.ts",
+      shared_commit_count: 3,
+      file_a_commit_count: 4,
+      file_b_commit_count: 5,
+    };
+    const fetchMock = stubGraph({ ...graph, cochange: [pair] });
+    renderWithQuery(<ExplorerPage repository={repository} theme="dark" />);
+    await screen.findByText("3 of 9 files");
+    expect(fetchMock.mock.calls.some(([url]) => url.includes("include=cochange"))).toBe(false);
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "Co-change" }));
+    await userEvent.click(await screen.findByRole("button", { name: "src/a.ts" }));
+
+    expect(fetchMock.mock.calls.some(([url]) => url.includes("include=cochange"))).toBe(true);
+    expect(await screen.findByText("Changes with (1)")).toBeInTheDocument();
+    expect(screen.getByText("3 of 4 commits")).toBeInTheDocument();
+    expect(screen.getByText(/Co-change is correlation, not a dependency/)).toBeInTheDocument();
   });
 });

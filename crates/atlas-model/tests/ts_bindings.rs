@@ -12,6 +12,10 @@ use atlas_model::{
     RepositoryEntry, RepositoryId, RunSummary,
 };
 use atlas_model::{
+    CoChangeEdge, CoChangeStats, EvidenceKind, HistoricalEvidence, ImpactRecommendation,
+    ImpactRequest, ImpactResponse, SelectedFile, SelectedFileStatus, StaticEvidence,
+};
+use atlas_model::{
     Cycle, FileDetail, GraphEdge, GraphNode, GraphResponse, Language, ParseStatus, ParserCoverage,
     ResolutionKind, TsconfigStatus, UnresolvedCount, UnresolvedImport, UnresolvedReason,
 };
@@ -68,6 +72,16 @@ fn generated_typescript_is_up_to_date() {
         binding::<UnresolvedCount>(),
         binding::<UnresolvedImport>(),
         binding::<UnresolvedReason>(),
+        binding::<CoChangeEdge>(),
+        binding::<CoChangeStats>(),
+        binding::<EvidenceKind>(),
+        binding::<HistoricalEvidence>(),
+        binding::<ImpactRecommendation>(),
+        binding::<ImpactRequest>(),
+        binding::<ImpactResponse>(),
+        binding::<SelectedFile>(),
+        binding::<SelectedFileStatus>(),
+        binding::<StaticEvidence>(),
         binding::<Oid>(),
         binding::<RepoPath>(),
         binding::<RepositoryEntry>(),

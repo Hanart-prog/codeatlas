@@ -37,7 +37,11 @@ function Legend() {
         <span aria-hidden className="size-2.5 rotate-45 bg-destructive" />
         in a cycle
       </span>
-      <span>Edges show source imports, not what runs.</span>
+      <span className="flex items-center gap-1.5">
+        <span aria-hidden className="h-1 w-6 rounded bg-amber-500" />
+        co-change, with shared commits
+      </span>
+      <span>Edges show source imports, not what runs. Co-change is correlation, not a dependency.</span>
     </div>
   );
 }
@@ -52,9 +56,14 @@ export function ExplorerPage({ repository, theme }: Props) {
   const [directory, setDirectory] = useState("");
   const [search, setSearch] = useState("");
   const [showTypes, setShowTypes] = useState(true);
+  const [showCochange, setShowCochange] = useState(false);
   const [selected, setSelected] = useState<string>();
 
-  const graph = useGraph(repository?.id, { ref: commit, directory: directory.trim() || undefined });
+  const graph = useGraph(repository?.id, {
+    ref: commit,
+    directory: directory.trim() || undefined,
+    include: showCochange ? "cochange" : undefined,
+  });
   const commits = useCommits(repository?.id, COMMIT_CHOICES, true);
   const select = useCallback((path: string | undefined) => setSelected(path), []);
 
@@ -117,6 +126,10 @@ export function ExplorerPage({ repository, theme }: Props) {
           <input type="checkbox" checked={showTypes} onChange={(event) => setShowTypes(event.target.checked)} />
           Type imports
         </label>
+        <label className="flex h-8 items-center gap-2 text-sm">
+          <input type="checkbox" checked={showCochange} onChange={(event) => setShowCochange(event.target.checked)} />
+          Co-change
+        </label>
       </div>
 
       {notAnalyzed && <p className="text-sm text-muted-foreground">Analyze this repository from the Overview first.</p>}
@@ -144,7 +157,14 @@ export function ExplorerPage({ repository, theme }: Props) {
                   <p className="text-sm text-muted-foreground">No TS or TSX files match at this commit.</p>
                 </CardContent>
               ) : (
-                <GraphCanvas nodes={nodes} edges={edges} selected={selected} onSelect={select} theme={theme} />
+                <GraphCanvas
+                  nodes={nodes}
+                  edges={edges}
+                  cochange={data.cochange}
+                  selected={selected}
+                  onSelect={select}
+                  theme={theme}
+                />
               )}
               <Legend />
             </Card>
@@ -157,6 +177,8 @@ export function ExplorerPage({ repository, theme }: Props) {
                     path={selected}
                     commit={commit}
                     onSelect={select}
+                    cochange={data.cochange}
+                    showCochange={showCochange}
                   />
                 ) : (
                   <>

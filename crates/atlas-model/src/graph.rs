@@ -218,6 +218,9 @@ pub struct GraphResponse {
     pub cycles: Vec<Cycle>,
     /// What the snapshot covers.
     pub coverage: ParserCoverage,
+    /// Co-change pairs among the returned files, when requested. These are
+    /// correlation, not dependencies, so they are not in `edges`.
+    pub cochange: Vec<crate::impact::CoChangeEdge>,
     /// Files matching the request before `limit` applied.
     pub matching_node_count: u32,
     /// Files in the whole snapshot.

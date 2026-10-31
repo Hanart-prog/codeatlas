@@ -4,6 +4,8 @@ import type { CommitPage } from "@/types/generated/CommitPage";
 import type { FileDetail } from "@/types/generated/FileDetail";
 import type { GraphResponse } from "@/types/generated/GraphResponse";
 import type { HealthResponse } from "@/types/generated/HealthResponse";
+import type { ImpactRequest } from "@/types/generated/ImpactRequest";
+import type { ImpactResponse } from "@/types/generated/ImpactResponse";
 import type { JobResponse } from "@/types/generated/JobResponse";
 import type { OverviewResponse } from "@/types/generated/OverviewResponse";
 import type { RepositoryEntry } from "@/types/generated/RepositoryEntry";
@@ -80,6 +82,7 @@ export const fetchCommits = (id: number, limit: number, signal: AbortSignal) =>
 export interface GraphFilter {
   ref?: string | undefined;
   directory?: string | undefined;
+  include?: "cochange" | undefined;
 }
 
 function query(values: Record<string, string | undefined>): string {
@@ -92,6 +95,9 @@ export const fetchGraph = (id: number, filter: GraphFilter, signal: AbortSignal)
 
 export const fetchFileDetail = (id: number, path: string, ref: string | undefined, signal: AbortSignal) =>
   request<FileDetail>(`/repositories/${id}/files?${query({ path, ref })}`, { signal });
+
+export const runImpact = (id: number, impact: ImpactRequest) =>
+  postJson<ImpactResponse>(`/repositories/${id}/impact`, impact);
 
 export const fetchJob = (id: number) => request<JobResponse>(`/jobs/${id}`);
 

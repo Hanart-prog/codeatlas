@@ -28,7 +28,6 @@ export const ROUTES: readonly [AppRoute, ...AppRoute[]] = [
     label: "Change Impact",
     icon: Radar,
     purpose: "Pick changed files and a historical cutoff to get a ranked, evidence-backed list of files to inspect.",
-    plannedPhase: 3,
   },
   {
     id: "time-machine",

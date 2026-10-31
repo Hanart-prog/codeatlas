@@ -1,6 +1,6 @@
 # Architecture
 
-Status: Phase 2.
+Status: Phase 3.
 
 ```text
 Local repository (read-only)
@@ -26,10 +26,10 @@ atlas-model: shared by every crate
 |---|---|---|
 | `atlas-model` | Identifiers, DTOs, configuration, error model. No Git, SQLite or HTTP | Working |
 | `atlas-git` | Read-only commits, first-parent walks, diffs, renames, exclusions | Working |
-| `atlas-analysis` | Identity lineage, churn, the indexing pipeline, snapshots, read models | Working; co-change, impact and backtests to come |
+| `atlas-analysis` | Identity lineage, churn, the indexing pipeline, snapshots, read models, co-change, impact ranking | Working; backtests to come |
 | `atlas-storage` | SQLite connection, migrations, history persistence | Working |
 | `atlas-api` | HTTP translation, background jobs, request guard, static dashboard | Working |
-| `atlas-cli` | The `codeatlas` binary | `analyze`, `overview`, `graph` and `serve` working; the rest report their phase |
+| `atlas-cli` | The `codeatlas` binary | `analyze`, `overview`, `graph`, `impact` and `serve` working; the rest report their phase |
 | `atlas-parser` | TS/TSX import extraction, resolution, `tsconfig` aliases | Working |
 | `atlas-graph` | Directed graph, cycles, reverse reachability | Working |
 | `atlas-fixtures` (`fixtures/generator`) | Deterministic fixture repositories, for tests only | Working |
@@ -41,7 +41,8 @@ The engine does not depend on the API or the frontend, so it works without React
 ## Conventions
 
 - **Edge direction:** `A -> B` means file `A` imports file `B`. Reverse traversal from `B` finds files that `B` may impact.
-- **Evidence stays separate:** `DependencyEdgeType` covers static evidence only. Co-change is correlation and gets its own storage and display.
+- **Evidence stays separate:** `DependencyEdgeType` covers static evidence only. Co-change is correlation and has its own types, fields and display.
+- **No look-ahead:** impact walks Git from the cutoff commit and reads the snapshot of that commit, so later history is never read ([ADR 11](decisions/0011-compute-impact-from-the-cutoff.md)).
 - **Output streams:** results go to stdout, diagnostics to stderr.
 - **Shared types:** Rust DTOs generate the TypeScript in `apps/web/src/types/generated`. A test fails when the two drift ([ADR 0005](decisions/0005-generated-api-types.md)).
 

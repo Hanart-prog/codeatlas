@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import type { ImpactRequest } from "@/types/generated/ImpactRequest";
 import type { JobResponse } from "@/types/generated/JobResponse";
 
 import {
@@ -12,6 +13,7 @@ import {
   fetchOverview,
   fetchRepositories,
   openRepository,
+  runImpact,
   startAnalysis,
 } from "./client";
 
@@ -50,6 +52,12 @@ export function useGraph(id: number | undefined, filter: GraphFilter) {
     enabled: id !== undefined,
     retry: false,
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useImpact() {
+  return useMutation({
+    mutationFn: ({ id, request }: { id: number; request: ImpactRequest }) => runImpact(id, request),
   });
 }
 

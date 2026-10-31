@@ -116,24 +116,46 @@ impl DependencyGraph {
     /// Files that depend on `start`, directly or transitively, within
     /// `max_depth` hops, with their shortest distance. `start` is left out.
     pub fn reverse_distances(&self, start: &RepoPath, max_depth: u32) -> BTreeMap<RepoPath, u32> {
-        let mut distances = BTreeMap::new();
+        self.reverse_paths(start, max_depth)
+            .into_iter()
+            .map(|(path, chain)| (path, chain.len() as u32 - 1))
+            .collect()
+    }
+
+    /// Like [`Self::reverse_distances`], but gives each dependent's import chain:
+    /// the dependent first and `start` last, so each file imports the next.
+    pub fn reverse_paths(
+        &self,
+        start: &RepoPath,
+        max_depth: u32,
+    ) -> BTreeMap<RepoPath, Vec<RepoPath>> {
+        let mut chains = BTreeMap::new();
         let Some(&origin) = self.indices.get(start) else {
-            return distances;
+            return chains;
         };
         let mut seen = HashSet::from([origin]);
-        let mut queue = VecDeque::from([(origin, 0)]);
-        while let Some((node, distance)) = queue.pop_front() {
-            if distance == max_depth {
+        let mut queue = VecDeque::from([(origin, vec![start.clone()])]);
+        while let Some((node, chain)) = queue.pop_front() {
+            if chain.len() as u32 > max_depth {
                 continue;
             }
-            for dependent in self.graph.neighbors_directed(node, Direction::Incoming) {
+            let mut dependents: Vec<_> = self
+                .graph
+                .neighbors_directed(node, Direction::Incoming)
+                .collect();
+            dependents.sort_by(|a, b| self.graph[*a].cmp(&self.graph[*b]));
+            for dependent in dependents {
                 if seen.insert(dependent) {
-                    distances.insert(self.graph[dependent].clone(), distance + 1);
-                    queue.push_back((dependent, distance + 1));
+                    let path = self.graph[dependent].clone();
+                    let mut extended = Vec::with_capacity(chain.len() + 1);
+                    extended.push(path.clone());
+                    extended.extend(chain.iter().cloned());
+                    chains.insert(path, extended.clone());
+                    queue.push_back((dependent, extended));
                 }
             }
         }
-        distances
+        chains
     }
 }
 
@@ -203,6 +225,14 @@ mod tests {
         let from_a = graph.reverse_distances(&p("a"), 10);
         assert_eq!(from_a.len(), 1);
         assert_eq!(from_a[&p("b")], 1);
+    }
+
+    #[test]
+    fn reverse_paths_list_the_import_chain() {
+        let graph = graph(&["a", "b", "c"], &[("a", "b"), ("b", "c")]);
+        let chains = graph.reverse_paths(&p("c"), 5);
+        assert_eq!(names(&chains[&p("a")]), ["a", "b", "c"]);
+        assert_eq!(names(&chains[&p("b")]), ["b", "c"]);
     }
 
     #[test]

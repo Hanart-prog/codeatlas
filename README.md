@@ -2,7 +2,9 @@
 
 Analyze a local Git repository's history and source dependencies to explain architecture evolution, estimate change impact, and backtest those estimates against later commits.
 
-> **Status: Phase 2 (import graphs).** CodeAtlas indexes first-parent history, follows files through renames, reports churn, and builds the TS/TSX import graph at any commit with cycles and resolution coverage. **Impact ranking, architecture comparison and backtesting do not exist yet:** `impact`, `compare`, `backtest`, `report` and `demo` exit with an error naming the phase that delivers them.
+> **Status: Phase 3 (change impact).** Given changed files and a historical cutoff, CodeAtlas ranks the files to inspect, with import and co-change evidence kept separate. It also indexes first-parent history, reports churn, and shows the import graph at any commit. **Architecture comparison and backtesting do not exist yet:** `compare`, `backtest`, `report` and `demo` exit with an error naming the phase that delivers them.
+
+Rankings are a heuristic. A score is not a probability of failure, and co-change is correlation, not causation.
 
 CodeAtlas is local-first: no accounts, cloud services, paid APIs, LLMs or telemetry. It treats analyzed repositories as untrusted, read-only input and never executes their code, hooks or scripts.
 
@@ -37,6 +39,7 @@ Open the dashboard and enter a repository path, or use the CLI. After `make buil
 cargo run -p atlas-cli -- analyze /path/to/repo --ref HEAD --history 500
 cargo run -p atlas-cli -- overview /path/to/repo --format json
 cargo run -p atlas-cli -- graph /path/to/repo --ref <commit> --directory src --format json
+cargo run -p atlas-cli -- impact /path/to/repo --ref <commit> --file src/auth/session.ts --top 10
 cargo run -p atlas-cli -- serve /path/to/repo --port 4317
 curl http://127.0.0.1:4317/api/v1/repositories
 ```

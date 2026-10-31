@@ -6,7 +6,9 @@ use std::path::Path;
 use std::process::{Child, Command, Output, Stdio};
 use std::time::Duration;
 
-use atlas_model::{GraphResponse, HealthResponse, HealthStatus, OverviewResponse, RepositoryEntry};
+use atlas_model::{
+    GraphResponse, HealthResponse, HealthStatus, ImpactResponse, OverviewResponse, RepositoryEntry,
+};
 use serde_json::Value;
 
 fn codeatlas() -> Command {
@@ -94,8 +96,7 @@ fn version_matches_the_package() {
 
 #[test]
 fn unbuilt_commands_fail_and_name_their_phase() {
-    let cases: [(&[&str], &str); 5] = [
-        (&["impact", "/nonexistent", "--file", "a.ts"], "Phase 3"),
+    let cases: [(&[&str], &str); 4] = [
         (
             &["compare", "/nonexistent", "--base", "a", "--target", "b"],
             "Phase 4",
@@ -339,5 +340,54 @@ fn serve_refuses_a_web_directory_without_a_dashboard() {
         String::from_utf8(output.stderr)
             .unwrap()
             .contains("index.html")
+    );
+}
+
+fn impact(repo: &Path, data: &Path, args: &[&str]) -> Output {
+    codeatlas()
+        .arg("impact")
+        .arg(repo)
+        .args(args)
+        .arg("--data-dir")
+        .arg(data)
+        .output()
+        .unwrap()
+}
+
+#[test]
+fn impact_ranks_files_with_their_evidence() {
+    let (repo, data) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    atlas_fixtures::generate_main_fixture(repo.path()).unwrap();
+    assert!(analyze_json(repo.path(), data.path()).status.success());
+
+    let args = ["--file", "src/auth/session.ts", "--format", "json"];
+    let first = impact(repo.path(), data.path(), &args);
+    assert!(first.status.success(), "{first:?}");
+    let parsed: ImpactResponse = serde_json::from_slice(&first.stdout).unwrap();
+    assert_eq!(
+        parsed.recommendations[0].path.as_str(),
+        "src/billing/invoice.ts"
+    );
+
+    let second = impact(repo.path(), data.path(), &args);
+    assert_eq!(first.stdout, second.stdout, "rankings must be reproducible");
+
+    let text = impact(repo.path(), data.path(), &["--file", "src/auth/session.ts"]);
+    let text = String::from_utf8(text.stdout).unwrap();
+    assert!(text.contains("not a probability"), "{text}");
+    assert!(text.contains("3 of 4"), "{text}");
+}
+
+#[test]
+fn impact_rejects_a_file_missing_at_the_cutoff() {
+    let (repo, data) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    atlas_fixtures::generate_main_fixture(repo.path()).unwrap();
+    assert!(analyze_json(repo.path(), data.path()).status.success());
+    let output = impact(repo.path(), data.path(), &["--file", "src/nope.ts"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        String::from_utf8(output.stderr)
+            .unwrap()
+            .contains("does not exist")
     );
 }

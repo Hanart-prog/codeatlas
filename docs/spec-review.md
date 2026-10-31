@@ -49,10 +49,10 @@ The fixture would pass while a real repository produced a sparse graph, leaving 
 
 ### 4. Impact scoring is underspecified and structurally favours static edges
 
-- Section 8 gives `static_score = 1 / distance` without saying how to combine several selected files. **Resolution:** use the minimum distance across selected files, matching `max_over_selected` for history.
+- Section 8 gives `static_score = 1 / distance` without saying how to combine several selected files. **Resolved in Phase 3:** use the minimum distance across selected files, matching `max_over_selected` for history.
 - With weights 0.60 and 0.40, any direct importer with no history (0.60) outranks a file with `P = 1.0` and no import (0.40). Keep the weights as specified, and use the Phase 5 backtest to report how alternatives perform.
-- Conditional probability inflates files that change constantly, such as barrels and changelogs. **Resolution:** also show the candidate's base rate and lift, for explanation only, without changing the score.
-- Floating-point ties can differ by rounding. **Resolution:** compare scores at fixed precision before the path tiebreak.
+- Conditional probability inflates files that change constantly, such as barrels and changelogs. **Resolved in Phase 3:** base rate and lift are shown for explanation only, and a low lift adds a caveat.
+- Floating-point ties can differ by rounding. **Resolved in Phase 3:** scores compare at fixed precision before the path tiebreak.
 
 ### 5. Git edge cases not covered
 
@@ -74,8 +74,8 @@ Phases 1 and 2 applied the `run_commits`, `commits`, `snapshots` and `parsed_blo
 
 | Table | Problem | Change |
 |---|---|---|
-| `cochange_edges` | One materialized set per cutoff is too large for a backtest with hundreds of cutoffs | Compute incrementally in memory for backtests; persist only for requested cutoffs |
-| `cochange_edges` | `file_a` and `file_b` read as paths, but section 7 counts identities | Reference `file_identity_id` |
+| `cochange_edges` | One materialized set per cutoff is too large for a backtest with hundreds of cutoffs | Resolved in Phase 3: computed by identity from Git at each cutoff, not stored ([ADR 11](decisions/0011-compute-impact-from-the-cutoff.md)) |
+| `impact_runs`, `impact_results` | Deterministic results can be recomputed, so storage adds only a staleness risk | Not created in Phase 3. Report exports may need them in Phase 6 |
 | `snapshots` | Tied to `analysis_run_id`, which blocks section 16's reuse across runs | Key by repository, commit, parser version and configuration hash |
 | New `parsed_blobs` | Section 16 caches by blob, but no table exists | Add, keyed by blob OID and parser version |
 | New `jobs`, `reports` | Sections 12 and 13 use them, with no table | Add in the phase that introduces each |
@@ -91,7 +91,7 @@ Phases 1 and 2 applied the `run_commits`, `commits`, `snapshots` and `parsed_blo
 | Overview needs recent jobs, and the file picker needs search, but neither has a route | `GET /repositories/:id/jobs`, `GET /repositories/:id/files?query=` |
 | Reports can be downloaded but not created | `POST /repositories/:id/reports` |
 | The dashboard cannot list repositories it has opened | `GET /repositories` |
-| Explorer toggles co-change edges, but `/graph` does not return them | Add `include=cochange` and return them in a separate array |
+| Explorer toggles co-change edges, but `/graph` did not return them | Resolved in Phase 3: `include=cochange` returns them in a separate array |
 | POST bodies | Require `application/json` and set a body size limit, which also reinforces ADR 2 |
 
 ## Planning gaps

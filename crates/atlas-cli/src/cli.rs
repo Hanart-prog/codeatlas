@@ -53,7 +53,7 @@ pub enum Command {
     Overview(OverviewArgs),
     /// Show the TS/TSX import graph at a commit
     Graph(GraphArgs),
-    /// [Phase 3, not implemented] Rank files to inspect when changing a file
+    /// Rank files to inspect when changing a file, as of a commit
     Impact(ImpactArgs),
     /// [Phase 4, not implemented] Diff the architecture of two commits
     Compare(CompareArgs),
@@ -113,7 +113,7 @@ pub struct GraphArgs {
 pub struct ImpactArgs {
     /// Analyzed repository
     pub repo: PathBuf,
-    /// Historical cutoff; later commits are ignored
+    /// Historical cutoff; later commits are never read
     #[arg(long = "ref", default_value = "HEAD")]
     pub git_ref: String,
     /// Changed file, relative to the repository root (repeatable)
@@ -122,6 +122,12 @@ pub struct ImpactArgs {
     /// Number of recommendations
     #[arg(long, default_value_t = 10)]
     pub top: u32,
+    /// Reverse dependency hops to follow
+    #[arg(long, default_value_t = 3)]
+    pub depth: u32,
+    /// First-parent commits of history, ending at the cutoff
+    #[arg(long, default_value_t = 200)]
+    pub window: u32,
     /// Output format
     #[arg(long, value_enum, default_value_t)]
     pub format: OutputFormat,

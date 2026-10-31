@@ -1,13 +1,12 @@
 # Limitations
 
-## Current state (Phase 2)
+## Current state (Phase 3)
 
-- No co-change, impact ranking, comparison or backtesting exists.
+- No architecture comparison or backtesting exists, so ranking quality has not been measured.
 - No benchmark has been run, so this project makes no performance claims.
-- Four of the six dashboard sections are placeholders that say so.
+- Three of the six dashboard sections are placeholders that say so.
 - `codeatlas serve` serves the dashboard from `apps/web/dist`, so a binary alone serves only the API, and it must run from the repository root or be given `--web-dir`.
 - Large graphs are cut to the most connected 500 files, with the true totals shown. Directory aggregation arrives in Phase 6.
-- Co-change edges are not in the Explorer yet. They arrive with Phase 3 data.
 - Only macOS arm64 has been tested locally. Linux is targeted by CI, which has not run yet. Windows is untested.
 - Analysis jobs cannot be cancelled yet, and they live in memory, so job ids do not survive a restart. Results do.
 - Each new tip commit reindexes the whole window. Incremental indexing is post-core.
@@ -35,6 +34,17 @@
 - Generated files that are not committed, such as `contentlayer/generated`, are unresolved.
 - A file with syntax errors is parsed as far as possible and marked, so its imports may be incomplete.
 - A repository over `limits.max_graph_nodes` or `max_graph_edges` keeps its history analysis but gets no graph.
+
+## Change impact
+
+- Scores are a ranking heuristic with hand-picked weights (0.6 static, 0.4 historical). They are not probabilities, and they have not been evaluated yet. Phase 5 measures them.
+- With these weights, any direct importer (0.60) outranks a file with perfect co-change and no import (0.40).
+- Co-change is correlation. Files can change together for unrelated reasons, and one merge can bundle unrelated work.
+- Co-change covers TS/TSX files only, so changes to other files are not recommended.
+- Conditional probability inflates files that change constantly. Base rate and lift are shown to expose this, but they do not affect the score.
+- Pairs need 3 shared commits by default, so young files have little historical evidence, and a score can jump when a pair reaches the threshold.
+- Each query reads up to 200 commits from Git, so it is not cached. Rankings are not stored; identical inputs reproduce them.
+- A new file with no history and no importers gets no recommendations. That is missing evidence, not safety.
 
 ## Security
 

@@ -16,6 +16,7 @@ pub fn run(args: GraphArgs, config: &AtlasConfig, data_dir: &Path) -> Result<(),
         git_ref: args.git_ref,
         directory: args.directory,
         limit: args.limit.clamp(1, config.limits.max_graph_nodes),
+        include_cochange: false,
     };
     let response = graph(&database, &repository, &query, config)?;
     match args.format {

@@ -6,8 +6,8 @@ use std::time::Duration;
 use atlas_api::{AppState, router};
 use atlas_fixtures::generate_main_fixture;
 use atlas_model::{
-    ApiErrorBody, CommitPage, ErrorCode, FileDetail, GraphResponse, JobResponse, JobStatus,
-    OverviewResponse, RepositoryEntry,
+    ApiErrorBody, CommitPage, ErrorCode, FileDetail, GraphResponse, ImpactResponse, JobResponse,
+    JobStatus, OverviewResponse, RepositoryEntry,
 };
 use axum::Router;
 use axum::body::Body;
@@ -396,4 +396,97 @@ async fn the_built_dashboard_is_served_with_a_content_security_policy() {
     let bytes = response.into_body().collect().await.unwrap().to_bytes();
     let error: ApiErrorBody = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(error.error.code, ErrorCode::NotFound);
+}
+
+#[tokio::test]
+async fn impact_route_ranks_and_validates() {
+    let repo = tempfile::tempdir().unwrap();
+    generate_main_fixture(repo.path()).unwrap();
+    let harness = Harness::new();
+    let id = harness.open(repo.path()).await.id.0;
+    harness.analyze(id, "{}").await;
+    let uri = format!("/repositories/{id}/impact");
+
+    let body = r#"{"selected_paths":["src/auth/session.ts"]}"#;
+    let response: ImpactResponse = harness
+        .json(Method::POST, &uri, Some(body), StatusCode::OK)
+        .await;
+    assert_eq!(
+        response.recommendations[0].path.as_str(),
+        "src/billing/invoice.ts"
+    );
+
+    for (body, status) in [
+        (r#"{"selected_paths":[]}"#, StatusCode::BAD_REQUEST),
+        (r#"{"selected_paths":["../x.ts"]}"#, StatusCode::BAD_REQUEST),
+        (
+            r#"{"selected_paths":["a.ts"],"top_k":0}"#,
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            r#"{"selected_paths":["a.ts"],"static_weight":-1}"#,
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            r#"{"selected_paths":["a.ts"],"unknown":1}"#,
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            r#"{"selected_paths":["src/nope.ts"]}"#,
+            StatusCode::NOT_FOUND,
+        ),
+        (
+            r#"{"selected_paths":["src/auth/session.ts"],"cutoff":"nope"}"#,
+            StatusCode::BAD_REQUEST,
+        ),
+    ] {
+        let (actual, bytes) = harness.send(Method::POST, &uri, Some(body)).await;
+        assert_eq!(
+            actual,
+            status,
+            "{body}: {}",
+            String::from_utf8_lossy(&bytes)
+        );
+        assert!(
+            serde_json::from_slice::<ApiErrorBody>(&bytes).is_ok(),
+            "{body}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn graph_returns_cochange_only_when_asked() {
+    let repo = tempfile::tempdir().unwrap();
+    generate_main_fixture(repo.path()).unwrap();
+    let harness = Harness::new();
+    let id = harness.open(repo.path()).await.id.0;
+    harness.analyze(id, "{}").await;
+
+    let plain: GraphResponse = harness
+        .json(
+            Method::GET,
+            &format!("/repositories/{id}/graph"),
+            None,
+            StatusCode::OK,
+        )
+        .await;
+    assert!(plain.cochange.is_empty());
+
+    let with: GraphResponse = harness
+        .json(
+            Method::GET,
+            &format!("/repositories/{id}/graph?include=cochange"),
+            None,
+            StatusCode::OK,
+        )
+        .await;
+    assert_eq!(with.cochange.len(), 1);
+    assert_eq!(with.cochange[0].file_a.as_str(), "src/auth/session.ts");
+    assert_eq!(with.cochange[0].file_b.as_str(), "src/billing/invoice.ts");
+    assert_eq!(with.cochange[0].shared_commit_count, 3);
+    assert_eq!(
+        with.edges.len(),
+        plain.edges.len(),
+        "co-change must not become import edges"
+    );
 }

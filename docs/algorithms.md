@@ -1,6 +1,6 @@
 # Algorithms and metric definitions
 
-Status: Phase 2. Later phases add co-change, impact scoring and backtesting.
+Status: Phase 3. Phase 5 adds backtesting.
 
 ## History
 
@@ -89,6 +89,34 @@ The share of local imports resolved is `resolved / (resolved + unresolved)`.
 - **Cycles** are strongly connected components with more than one file, plus self-imports. Member lists are sorted. A cycle is `type_only` if none of its files is in a cycle without `import type` edges, since such edges are erased at compile time.
 - **Reverse reachability** is a breadth-first search over incoming edges, giving each dependent's shortest distance. Phase 3 uses it.
 
+## Co-change
+
+History is the `history_window` first-parent commits (default 200) ending at the cutoff, walked from the cutoff itself.
+
+A file change is **eligible** if it is not excluded and its path is TS/TSX, the same files the import graph covers. A commit's set is its distinct eligible file identities, so renames stay one file and a commit counts once per file. Commits with an empty set, or more files than `bulk_commit_file_threshold` (default 50), are skipped and reported. Merges count once, against their first parent. A pair needs `min_shared_commits` (default 3) to count.
+
+| Metric | Definition |
+|---|---|
+| `shared` | Eligible commits touching both files |
+| `P(B changed given A changed)` | `shared / count(A)`. Directional |
+| Jaccard | `shared / (count(A) + count(B) - shared)` |
+| Base rate | `count(B) / eligible commits` |
+| Lift | `P(B given A) / base rate`. Near 1, B changes this often anyway |
+
+Pairs are counted sparsely per commit, so work is bounded by the bulk threshold rather than the number of file pairs.
+
+## Change impact
+
+Inputs are the selected files as they exist at the cutoff, a depth (default 3), a window, and weights. For each candidate file:
+
+- `static_score = 1 / distance`, using the minimum reverse dependency distance to any selected file within depth, otherwise 0. Type imports count.
+- `historical_score` is the maximum `P(candidate given selected)` over selected files with enough shared commits, otherwise 0.
+- `score = 0.6 * static_score + 0.4 * historical_score`.
+
+Results sort by score descending, then path ascending, comparing scores at 6 decimal places so that rounding noise cannot decide an order. Selected files and files deleted by the cutoff are never recommended. The score is a ranking heuristic, **not a probability of failure**.
+
+A selected file must exist at the cutoff. Its identity is resolved at that point, so history follows renames made before the cutoff, and later renames are unknown.
+
 ## Verification
 
 Besides the fixture, Phase 1 was checked against the `git` CLI on `sindresorhus/ky` (592 first-parent commits, one manual run, not part of CI):
@@ -107,3 +135,5 @@ Phase 2 edges were compared with the TypeScript compiler's `resolveModuleName`, 
 | `colinhacks/zod` (monorepo) | 515 | 640 | Every edge resolves the same when given to the compiler |
 
 For `zod`, the check script found 634 edges because TypeScript's `preProcessFile` scanner skipped 6 `export * as x from` lines. The Phase 2 `zod` figures exclude its docs package's own aliases, which are out of scope and reported as `unknown_alias`.
+
+Phase 3 co-change counts were recomputed from `git log --name-status` with no libgit2 involved, in a manual run outside CI. On `sindresorhus/ky`, all 35 pairs for `source/core/Ky.ts` matched on selected, candidate and shared counts, and the eligible commit count matched (176). On `shadcn-ui/taxonomy` the eligible count matched (64). Scores themselves have not been evaluated against outcomes; Phase 5 does that.

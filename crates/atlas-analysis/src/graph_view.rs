@@ -6,11 +6,13 @@ use std::path::Path;
 use atlas_git::GitRepository;
 use atlas_graph::DependencyGraph;
 use atlas_model::{
-    AtlasConfig, AtlasError, FileDetail, GraphEdge, GraphNode, GraphResponse, Oid, RepoPath,
-    RepositoryEntry,
+    AtlasConfig, AtlasError, CoChangeEdge, FileDetail, GraphEdge, GraphNode, GraphResponse, Oid,
+    RepoPath, RepositoryEntry,
 };
 use atlas_storage::{Database, SnapshotId};
 
+use crate::cochange::load_scoped_history;
+use crate::impact::DEFAULT_HISTORY_WINDOW;
 use crate::overview::run_churn;
 use crate::snapshot::{is_type_only, snapshot_for};
 
@@ -23,6 +25,8 @@ pub struct GraphQuery {
     pub directory: Option<String>,
     /// Most connected files to return.
     pub limit: u32,
+    /// Also return co-change pairs among the returned files.
+    pub include_cochange: bool,
 }
 
 struct Snapshot {
@@ -113,6 +117,11 @@ pub fn graph(
     nodes.truncate(query.limit as usize);
 
     let kept: HashSet<&RepoPath> = nodes.iter().map(|node| &node.path).collect();
+    let cochange = if query.include_cochange {
+        cochange_edges(repository, &snapshot.commit, &kept, config)?
+    } else {
+        Vec::new()
+    };
     let edges = snapshot
         .edges
         .into_iter()
@@ -123,12 +132,52 @@ pub fn graph(
         coverage: database.snapshot_coverage(snapshot.id)?,
         commit: snapshot.commit,
         cycles: snapshot.cycles,
+        cochange,
         nodes,
         edges,
         matching_node_count,
         total_node_count,
         total_edge_count,
     })
+}
+
+/// Pairs meeting minimum support as of `commit`, among `kept` files.
+fn cochange_edges(
+    repository: &RepositoryEntry,
+    commit: &Oid,
+    kept: &HashSet<&RepoPath>,
+    config: &AtlasConfig,
+) -> Result<Vec<CoChangeEdge>, AtlasError> {
+    let git = GitRepository::open(Path::new(&repository.path))?;
+    let history = load_scoped_history(&git, commit, DEFAULT_HISTORY_WINDOW, config)?;
+    let alive = history.alive_paths();
+
+    let mut edges = Vec::new();
+    for (a, b, shared) in history.index.pairs() {
+        if (shared.len() as u32) < config.analysis.min_shared_commits {
+            continue;
+        }
+        let (Some(&path_a), Some(&path_b)) = (alive.get(&a), alive.get(&b)) else {
+            continue;
+        };
+        if !kept.contains(path_a) || !kept.contains(path_b) {
+            continue;
+        }
+        let ordered = if path_a < path_b {
+            [(path_a, a), (path_b, b)]
+        } else {
+            [(path_b, b), (path_a, a)]
+        };
+        edges.push(CoChangeEdge {
+            file_a: ordered[0].0.clone(),
+            file_b: ordered[1].0.clone(),
+            shared_commit_count: shared.len() as u32,
+            file_a_commit_count: history.index.commits_of(ordered[0].1).len() as u32,
+            file_b_commit_count: history.index.commits_of(ordered[1].1).len() as u32,
+        });
+    }
+    edges.sort_by(|x, y| (&x.file_a, &x.file_b).cmp(&(&y.file_a, &y.file_b)));
+    Ok(edges)
 }
 
 /// One file at a commit, with its edges in both directions.

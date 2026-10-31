@@ -17,6 +17,10 @@ const ExplorerPage = lazy(() =>
   import("@/features/explorer/ExplorerPage").then((module) => ({ default: module.ExplorerPage })),
 );
 
+const ImpactPage = lazy(() =>
+  import("@/features/impact/ImpactPage").then((module) => ({ default: module.ImpactPage })),
+);
+
 export function App() {
   const route = useHashRoute();
   const { theme, toggle } = useTheme();
@@ -93,6 +97,10 @@ export function App() {
           ) : route.id === "explorer" ? (
             <Suspense fallback={<Skeleton aria-label="Loading explorer" className="h-[520px] w-full" />}>
               <ExplorerPage repository={selection.repository} theme={theme} />
+            </Suspense>
+          ) : route.id === "impact" ? (
+            <Suspense fallback={<Skeleton aria-label="Loading change impact" className="h-[520px] w-full" />}>
+              <ImpactPage repository={selection.repository} theme={theme} />
             </Suspense>
           ) : (
             <OverviewPage selection={selection} />

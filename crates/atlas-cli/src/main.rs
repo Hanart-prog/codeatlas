@@ -3,6 +3,7 @@
 mod cli;
 mod graph;
 mod history;
+mod impact;
 mod serve;
 
 use std::fs;
@@ -56,7 +57,7 @@ fn run(cli: Cli) -> Result<(), AtlasError> {
         Command::Analyze(args) => history::analyze(args, &config, &data_dir),
         Command::Overview(args) => history::overview(args, &data_dir),
         Command::Graph(args) => graph::run(args, &config, &data_dir),
-        Command::Impact(_) => planned("`codeatlas impact`", 3),
+        Command::Impact(args) => impact::run(args, &config, &data_dir),
         Command::Compare(_) => planned("`codeatlas compare`", 4),
         Command::Backtest(_) => planned("`codeatlas backtest`", 5),
         Command::Report(_) => planned("`codeatlas report`", 6),
