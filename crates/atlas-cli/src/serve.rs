@@ -2,13 +2,16 @@
 
 use std::io::Write;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use atlas_api::AppState;
 use atlas_model::{AtlasConfig, AtlasError};
 use tokio::net::TcpListener;
 
 use crate::cli::ServeArgs;
+
+/// Where `make build` puts the dashboard, relative to the repository root.
+const DEFAULT_WEB_DIR: &str = "apps/web/dist";
 
 pub fn run(args: ServeArgs, config: AtlasConfig, data_dir: &Path) -> Result<(), AtlasError> {
     let host = args.host.as_deref().unwrap_or(&config.server.host);
@@ -23,7 +26,23 @@ pub fn run(args: ServeArgs, config: AtlasConfig, data_dir: &Path) -> Result<(), 
         let entry = atlas_analysis::open_repository(&database, repository)?;
         tracing::info!(id = entry.id.0, "registered {}", entry.path);
     }
-    let state = AppState::open(&database_path, config)?;
+    let mut state = AppState::open(&database_path, config)?;
+    let web_dir = args.web_dir.or_else(|| {
+        let default = PathBuf::from(DEFAULT_WEB_DIR);
+        default.is_dir().then_some(default)
+    });
+    match web_dir {
+        Some(directory) if directory.join("index.html").is_file() => {
+            state = state.with_web_dir(directory);
+        }
+        Some(directory) => {
+            return Err(AtlasError::InvalidInput(format!(
+                "{} has no index.html; run `make build` first",
+                directory.display()
+            )));
+        }
+        None => tracing::info!("no built dashboard found, serving the API only"),
+    }
 
     let runtime = tokio::runtime::Runtime::new().map_err(|source| AtlasError::Io {
         context: "could not start the async runtime".to_owned(),

@@ -21,6 +21,8 @@ use axum::{Router, middleware};
 use tokio::net::TcpListener;
 use tokio::sync::Semaphore;
 use tower_http::cors::CorsLayer;
+use tower_http::services::ServeDir;
+use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 
 pub use error::ApiError;
@@ -34,6 +36,11 @@ const MAX_BODY_BYTES: usize = 64 * 1024;
 /// Analyses that may run at once; more wait in the queue.
 const MAX_CONCURRENT_ANALYSES: usize = 2;
 
+/// Dashboard pages show untrusted repository text, so even an escaping bug must
+/// not be able to run a script or reach another site.
+const CONTENT_SECURITY_POLICY: &str = "default-src 'self'; style-src 'self' 'unsafe-inline'; \
+     img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
+
 /// State shared by request handlers.
 #[derive(Debug, Clone)]
 pub struct AppState {
@@ -42,6 +49,7 @@ pub struct AppState {
     config: Arc<AtlasConfig>,
     jobs: Arc<jobs::JobRegistry>,
     analysis_slots: Arc<Semaphore>,
+    web_dir: Option<PathBuf>,
 }
 
 impl AppState {
@@ -59,6 +67,31 @@ impl AppState {
             config: Arc::new(config),
             jobs: Arc::default(),
             analysis_slots: Arc::new(Semaphore::new(MAX_CONCURRENT_ANALYSES)),
+            web_dir: None,
+        }
+    }
+
+    /// Serves the built dashboard from `directory` alongside the API.
+    pub fn with_web_dir(mut self, directory: PathBuf) -> Self {
+        self.web_dir = Some(directory);
+        self
+    }
+
+    /// Runs work that may write, on its own connection, so that it does not hold
+    /// up other requests.
+    async fn write<T: Send + 'static>(
+        &self,
+        work: impl FnOnce(&mut Database, &AtlasConfig) -> Result<T, AtlasError> + Send + 'static,
+    ) -> Result<T, ApiError> {
+        let path = self.database_path.clone();
+        let config = Arc::clone(&self.config);
+        let task = tokio::task::spawn_blocking(move || {
+            let mut database = Database::open(&path)?;
+            work(&mut database, &config)
+        });
+        match task.await {
+            Ok(result) => result.map_err(ApiError::from),
+            Err(_) => Err(ApiError::internal("query task failed")),
         }
     }
 
@@ -90,14 +123,24 @@ pub fn router(state: AppState) -> Router {
         .route("/repositories/{id}/analyze", post(repositories::analyze))
         .route("/repositories/{id}/overview", get(repositories::overview))
         .route("/repositories/{id}/commits", get(repositories::commits))
+        .route("/repositories/{id}/graph", get(repositories::graph))
+        .route("/repositories/{id}/files", get(repositories::file))
         .route("/jobs/{id}", get(jobs::get_job))
         .fallback(not_found)
         .method_not_allowed_fallback(method_not_allowed)
-        .with_state(state);
+        .with_state(state.clone());
 
-    Router::new()
-        .nest("/api/v1", v1)
-        .fallback(not_found)
+    let routes = Router::new().nest("/api/v1", v1);
+    let routes = match state.web_dir {
+        Some(directory) => routes.fallback_service(ServeDir::new(directory)),
+        None => routes.fallback(not_found),
+    };
+
+    routes
+        .layer(SetResponseHeaderLayer::overriding(
+            header::CONTENT_SECURITY_POLICY,
+            HeaderValue::from_static(CONTENT_SECURITY_POLICY),
+        ))
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .layer(middleware::from_fn(request_guard::require_local_request))
         .layer(cors())

@@ -2,10 +2,13 @@
 
 use std::path::{Path as FsPath, PathBuf};
 
-use atlas_analysis::{AnalyzeOptions, open_repository, overview as load_overview};
+use atlas_analysis::{
+    AnalyzeOptions, GraphQuery, file_detail, graph as load_graph, open_repository,
+    overview as load_overview,
+};
 use atlas_model::{
-    AnalyzeRequest, AtlasError, CommitPage, DEFAULT_HISTORY_LIMIT, JobResponse,
-    OpenRepositoryRequest, OverviewResponse, RepositoryEntry, RepositoryId,
+    AnalyzeRequest, AtlasError, CommitPage, DEFAULT_HISTORY_LIMIT, FileDetail, GraphResponse,
+    JobResponse, OpenRepositoryRequest, OverviewResponse, RepoPath, RepositoryEntry, RepositoryId,
 };
 use axum::Json;
 use axum::extract::rejection::JsonRejection;
@@ -17,6 +20,7 @@ use crate::{ApiError, AppState};
 
 const DEFAULT_PAGE_SIZE: u32 = 50;
 const MAX_PAGE_SIZE: u32 = 200;
+const DEFAULT_GRAPH_NODES: u32 = 500;
 
 fn parse_id(raw: &str) -> Result<RepositoryId, ApiError> {
     raw.parse()
@@ -109,6 +113,63 @@ pub async fn commits(
                 .latest_run(id)?
                 .ok_or_else(|| AtlasError::NotFound("repository not analyzed yet".to_owned()))?;
             Ok(db.commit_page(run.id, page.cursor, limit)?)
+        })
+        .await?;
+    Ok(Json(result))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GraphParams {
+    #[serde(rename = "ref")]
+    git_ref: Option<String>,
+    directory: Option<String>,
+    limit: Option<u32>,
+}
+
+/// `GET /repositories/:id/graph?ref=&directory=&limit=`
+pub async fn graph(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(params): Query<GraphParams>,
+) -> Result<Json<GraphResponse>, ApiError> {
+    let id = parse_id(&id)?;
+    let result = state
+        .write(move |db, config| {
+            let repository = found(db.repository(id)?)?;
+            let query = GraphQuery {
+                git_ref: params.git_ref,
+                directory: params.directory,
+                limit: params
+                    .limit
+                    .unwrap_or(DEFAULT_GRAPH_NODES)
+                    .clamp(1, config.limits.max_graph_nodes),
+            };
+            load_graph(db, &repository, &query, config)
+        })
+        .await?;
+    Ok(Json(result))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FileParams {
+    path: String,
+    #[serde(rename = "ref")]
+    git_ref: Option<String>,
+}
+
+/// `GET /repositories/:id/files?path=&ref=`. The path is a query parameter, so no
+/// route has to decode a repository path out of its URL segments.
+pub async fn file(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(params): Query<FileParams>,
+) -> Result<Json<FileDetail>, ApiError> {
+    let id = parse_id(&id)?;
+    let path: RepoPath = params.path.parse().map_err(ApiError::from)?;
+    let result = state
+        .write(move |db, config| {
+            let repository = found(db.repository(id)?)?;
+            file_detail(db, &repository, params.git_ref, &path, config)
         })
         .await?;
     Ok(Json(result))

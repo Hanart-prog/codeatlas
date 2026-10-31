@@ -51,6 +51,8 @@ pub enum Command {
     Analyze(AnalyzeArgs),
     /// Summarize the latest analysis of a repository
     Overview(OverviewArgs),
+    /// Show the TS/TSX import graph at a commit
+    Graph(GraphArgs),
     /// [Phase 3, not implemented] Rank files to inspect when changing a file
     Impact(ImpactArgs),
     /// [Phase 4, not implemented] Diff the architecture of two commits
@@ -84,6 +86,24 @@ pub struct AnalyzeArgs {
 pub struct OverviewArgs {
     /// Analyzed repository
     pub repo: PathBuf,
+    /// Output format
+    #[arg(long, value_enum, default_value_t)]
+    pub format: OutputFormat,
+}
+
+#[derive(Debug, Args)]
+pub struct GraphArgs {
+    /// Repository to read
+    pub repo: PathBuf,
+    /// Commit to read [default: the latest analyzed commit]
+    #[arg(long = "ref")]
+    pub git_ref: Option<String>,
+    /// Only files under this directory
+    #[arg(long)]
+    pub directory: Option<String>,
+    /// Most connected files to include
+    #[arg(long, default_value_t = 500)]
+    pub limit: u32,
     /// Output format
     #[arg(long, value_enum, default_value_t)]
     pub format: OutputFormat,
@@ -159,4 +179,7 @@ pub struct ServeArgs {
     /// Port to bind; 0 picks a free port [default: 4317]
     #[arg(long)]
     pub port: Option<u16>,
+    /// Built dashboard to serve [default: apps/web/dist, if present]
+    #[arg(long, value_name = "DIR")]
+    pub web_dir: Option<PathBuf>,
 }

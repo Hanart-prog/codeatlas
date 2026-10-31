@@ -45,7 +45,7 @@ fn print(overview: &OverviewResponse, format: OutputFormat) -> Result<(), AtlasE
 
 /// Paths and subjects come from the repository, so they can hold escape
 /// sequences aimed at the terminal that prints them.
-fn safe(text: &str) -> String {
+pub(crate) fn safe(text: &str) -> String {
     text.chars()
         .map(|c| if c.is_control() { '\u{FFFD}' } else { c })
         .collect()

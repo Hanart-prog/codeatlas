@@ -1,6 +1,7 @@
 //! The `codeatlas` command. Results go to stdout and diagnostics to stderr.
 
 mod cli;
+mod graph;
 mod history;
 mod serve;
 
@@ -54,6 +55,7 @@ fn run(cli: Cli) -> Result<(), AtlasError> {
         Command::Serve(args) => serve::run(args, config, &data_dir),
         Command::Analyze(args) => history::analyze(args, &config, &data_dir),
         Command::Overview(args) => history::overview(args, &data_dir),
+        Command::Graph(args) => graph::run(args, &config, &data_dir),
         Command::Impact(_) => planned("`codeatlas impact`", 3),
         Command::Compare(_) => planned("`codeatlas compare`", 4),
         Command::Backtest(_) => planned("`codeatlas backtest`", 5),

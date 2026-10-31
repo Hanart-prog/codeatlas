@@ -6,7 +6,7 @@ use std::path::Path;
 use std::process::{Child, Command, Output, Stdio};
 use std::time::Duration;
 
-use atlas_model::{HealthResponse, HealthStatus, OverviewResponse, RepositoryEntry};
+use atlas_model::{GraphResponse, HealthResponse, HealthStatus, OverviewResponse, RepositoryEntry};
 use serde_json::Value;
 
 fn codeatlas() -> Command {
@@ -75,7 +75,7 @@ fn help_documents_the_whole_interface_and_its_safety_constraints() {
     assert!(output.status.success());
     let help = String::from_utf8(output.stdout).unwrap();
     for command in [
-        "analyze", "overview", "impact", "compare", "backtest", "report", "serve", "demo",
+        "analyze", "overview", "graph", "impact", "compare", "backtest", "report", "serve", "demo",
     ] {
         assert!(help.contains(command), "missing {command}");
     }
@@ -303,4 +303,41 @@ fn serve_registers_a_repository_argument() {
     assert_eq!(status, 200, "{body}");
     let listed: Vec<RepositoryEntry> = serde_json::from_str(&body).unwrap();
     assert_eq!(listed.len(), 1);
+}
+
+#[test]
+fn graph_reads_a_commit_without_any_frontend() {
+    let (repo, data) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    atlas_fixtures::generate_main_fixture(repo.path()).unwrap();
+    assert!(analyze_json(repo.path(), data.path()).status.success());
+
+    let output = codeatlas()
+        .arg("graph")
+        .arg(repo.path())
+        .args(["--format", "json", "--data-dir"])
+        .arg(data.path())
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{output:?}");
+    let graph: GraphResponse = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(graph.total_node_count, 8);
+    assert_eq!(graph.total_edge_count, 4);
+}
+
+#[test]
+fn serve_refuses_a_web_directory_without_a_dashboard() {
+    let (web, data) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let output = codeatlas()
+        .args(["serve", "--port", "0", "--web-dir"])
+        .arg(web.path())
+        .arg("--data-dir")
+        .arg(data.path())
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        String::from_utf8(output.stderr)
+            .unwrap()
+            .contains("index.html")
+    );
 }

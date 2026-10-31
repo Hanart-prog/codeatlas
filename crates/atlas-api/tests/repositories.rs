@@ -6,7 +6,8 @@ use std::time::Duration;
 use atlas_api::{AppState, router};
 use atlas_fixtures::generate_main_fixture;
 use atlas_model::{
-    ApiErrorBody, CommitPage, ErrorCode, JobResponse, JobStatus, OverviewResponse, RepositoryEntry,
+    ApiErrorBody, CommitPage, ErrorCode, FileDetail, GraphResponse, JobResponse, JobStatus,
+    OverviewResponse, RepositoryEntry,
 };
 use axum::Router;
 use axum::body::Body;
@@ -314,4 +315,85 @@ async fn oversized_bodies_are_rejected() {
         .await;
     assert!(status.is_client_error(), "{status}");
     assert_ne!(status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn graph_and_file_routes_serve_real_snapshots() {
+    let repo = tempfile::tempdir().unwrap();
+    generate_main_fixture(repo.path()).unwrap();
+    let harness = Harness::new();
+    let id = harness.open(repo.path()).await.id.0;
+    harness.analyze(id, "{}").await;
+
+    let graph: GraphResponse = harness
+        .json(
+            Method::GET,
+            &format!("/repositories/{id}/graph?limit=3&directory=src"),
+            None,
+            StatusCode::OK,
+        )
+        .await;
+    assert_eq!(graph.nodes.len(), 3);
+    assert_eq!(graph.total_edge_count, 4);
+
+    let uri = format!("/repositories/{id}/files?path=src%2Fm%C3%B3dulo%20uno%2F%C3%ADndice.ts");
+    let detail: FileDetail = harness.json(Method::GET, &uri, None, StatusCode::OK).await;
+    assert_eq!(detail.node.path.as_str(), "src/módulo uno/índice.ts");
+}
+
+#[tokio::test]
+async fn traversal_in_a_file_path_is_rejected() {
+    let repo = tempfile::tempdir().unwrap();
+    generate_main_fixture(repo.path()).unwrap();
+    let harness = Harness::new();
+    let id = harness.open(repo.path()).await.id.0;
+    harness.analyze(id, "{}").await;
+
+    let uri = format!("/repositories/{id}/files?path=..%2F..%2Fetc%2Fpasswd");
+    let code = harness
+        .error(Method::GET, &uri, None, StatusCode::BAD_REQUEST)
+        .await;
+    assert_eq!(code, ErrorCode::InvalidInput);
+}
+
+#[tokio::test]
+async fn the_built_dashboard_is_served_with_a_content_security_policy() {
+    let web = tempfile::tempdir().unwrap();
+    std::fs::write(web.path().join("index.html"), "<title>dash</title>").unwrap();
+    let data = tempfile::tempdir().unwrap();
+    let state = AppState::open(&data.path().join("atlas.sqlite"), Default::default())
+        .unwrap()
+        .with_web_dir(web.path().to_path_buf());
+
+    let request = Request::builder()
+        .uri("/")
+        .header(header::HOST, "127.0.0.1:4317")
+        .body(Body::empty())
+        .unwrap();
+    let response = router(state.clone()).oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(
+        response
+            .headers()
+            .contains_key(header::CONTENT_SECURITY_POLICY)
+    );
+
+    let request = Request::builder()
+        .uri("/../../etc/passwd")
+        .header(header::HOST, "127.0.0.1:4317")
+        .body(Body::empty())
+        .unwrap();
+    let response = router(state.clone()).oneshot(request).await.unwrap();
+    assert_ne!(response.status(), StatusCode::OK);
+
+    let request = Request::builder()
+        .uri("/api/v1/nope")
+        .header(header::HOST, "127.0.0.1:4317")
+        .body(Body::empty())
+        .unwrap();
+    let response = router(state).oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let error: ApiErrorBody = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(error.error.code, ErrorCode::NotFound);
 }
