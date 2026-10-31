@@ -2,7 +2,7 @@
 
 Analyze a local Git repository's history and source dependencies to explain architecture evolution, estimate change impact, and backtest those estimates against later commits.
 
-> **Status: Phase 1 (Git indexing).** CodeAtlas indexes first-parent history, follows files through renames, and reports churn from the CLI, API and dashboard. **Import graphs, impact ranking, architecture comparison and backtesting do not exist yet:** `impact`, `compare`, `backtest`, `report` and `demo` exit with an error naming the phase that delivers them.
+> **Status: Phase 2 (import graphs).** CodeAtlas indexes first-parent history, follows files through renames, reports churn, and builds the TS/TSX import graph at any commit with cycles and resolution coverage. **Impact ranking, architecture comparison and backtesting do not exist yet:** `impact`, `compare`, `backtest`, `report` and `demo` exit with an error naming the phase that delivers them.
 
 CodeAtlas is local-first: no accounts, cloud services, paid APIs, LLMs or telemetry. It treats analyzed repositories as untrusted, read-only input and never executes their code, hooks or scripts.
 
@@ -17,7 +17,7 @@ CodeAtlas is local-first: no accounts, cloud services, paid APIs, LLMs or teleme
 
 ```bash
 make setup   # fetch Rust and frontend dependencies
-make dev     # API on 127.0.0.1:4317, dashboard on http://127.0.0.1:5173
+make dev     # API on 127.0.0.1:4317, dashboard with live reload on http://127.0.0.1:5173
 ```
 
 | Command | Purpose |
@@ -25,16 +25,18 @@ make dev     # API on 127.0.0.1:4317, dashboard on http://127.0.0.1:5173
 | `make check` | rustfmt, clippy with warnings denied, ESLint, TypeScript |
 | `make test` | All Rust and frontend tests |
 | `make build` | Release binary and production frontend |
+| `make e2e` | Browser tests; `PW_CHANNEL=chrome make e2e` uses local Chrome |
 | `make types` | Regenerate frontend types from the Rust DTOs |
 | `make fixture DIR=/empty/dir` | Generate the deterministic fixture repository |
 
-Open the dashboard and enter a repository path, or use the CLI.
+Open the dashboard and enter a repository path, or use the CLI. After `make build`, `codeatlas serve` run from the repository root also serves the dashboard at http://127.0.0.1:4317.
 
 ## CLI
 
 ```bash
 cargo run -p atlas-cli -- analyze /path/to/repo --ref HEAD --history 500
 cargo run -p atlas-cli -- overview /path/to/repo --format json
+cargo run -p atlas-cli -- graph /path/to/repo --ref <commit> --directory src --format json
 cargo run -p atlas-cli -- serve /path/to/repo --port 4317
 curl http://127.0.0.1:4317/api/v1/repositories
 ```

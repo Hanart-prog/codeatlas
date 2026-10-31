@@ -1,12 +1,13 @@
 # Limitations
 
-## Current state (Phase 1)
+## Current state (Phase 2)
 
-- No import parsing, dependency graph, co-change, impact ranking, comparison or backtesting exists.
-- `parser_version` is 0 because no parser exists yet.
+- No co-change, impact ranking, comparison or backtesting exists.
 - No benchmark has been run, so this project makes no performance claims.
-- Five of the six dashboard sections are placeholders that say so.
-- The production frontend builds, but `codeatlas serve` does not serve it yet. It runs through Vite.
+- Four of the six dashboard sections are placeholders that say so.
+- `codeatlas serve` serves the dashboard from `apps/web/dist`, so a binary alone serves only the API, and it must run from the repository root or be given `--web-dir`.
+- Large graphs are cut to the most connected 500 files, with the true totals shown. Directory aggregation arrives in Phase 6.
+- Co-change edges are not in the Explorer yet. They arrive with Phase 3 data.
 - Only macOS arm64 has been tested locally. Linux is targeted by CI, which has not run yet. Windows is untested.
 - Analysis jobs cannot be cancelled yet, and they live in memory, so job ids do not survive a restart. Results do.
 - Each new tip commit reindexes the whole window. Incremental indexing is post-core.
@@ -21,7 +22,19 @@
 - A file deleted and later recreated at the same path is two identities, even if the content matches.
 - Paths that are not valid UTF-8 are counted and skipped, never replaced lossily.
 - Commit timestamps are displayed but never used for ordering, because they are not monotonic.
-- Git LFS pointer files are counted as small text files. Parsing must skip them in Phase 2.
+- Git LFS pointer files count as small text files in churn. Parsing skips them.
+
+## Import graphs
+
+- Edges show imports in source, not what runs. A dynamic import may never load.
+- Only TS/TSX is analyzed. Files in other languages are counted, not parsed.
+- `tsconfig` support reads `paths` and `baseUrl` from the root `tsconfig.json` only. `extends` is not followed (reported in coverage), and a monorepo package's own `tsconfig.json` is ignored, so its aliases show as unresolved.
+- Package imports are omitted, and workspace packages imported by name count as external.
+- `require()`, non-literal `import()`, and `import("./x").T` type expressions are not in the graph. The first two are counted.
+- `.d.ts` files are excluded by default, so an import resolving only to one is reported as not found.
+- Generated files that are not committed, such as `contentlayer/generated`, are unresolved.
+- A file with syntax errors is parsed as far as possible and marked, so its imports may be incomplete.
+- A repository over `limits.max_graph_nodes` or `max_graph_edges` keeps its history analysis but gets no graph.
 
 ## Security
 

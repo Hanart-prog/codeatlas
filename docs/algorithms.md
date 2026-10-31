@@ -1,6 +1,6 @@
 # Algorithms and metric definitions
 
-Status: Phase 1. Later phases add co-change, impact scoring and backtesting.
+Status: Phase 2. Later phases add co-change, impact scoring and backtesting.
 
 ## History
 
@@ -49,6 +49,46 @@ A rename contributes only its line edits. Results are ordered by `commit_count` 
 
 Churn describes activity. It says nothing about defects or about the people who made the changes.
 
+## Imports
+
+Imports are read from Git blobs with Tree-sitter, using the TypeScript grammar for `.ts`, `.mts` and `.cts` and the TSX grammar for `.tsx`.
+
+| Edge type | Source form |
+|---|---|
+| `static_import` | `import ... from`, `import '...'`, `import x = require('...')` |
+| `type_only_import` | `import type`, `export type ... from`, or `import { type A }` with only type specifiers |
+| `re_export` | `export ... from` |
+| `dynamic_import` | `import('...')` with a literal path |
+
+## Resolution
+
+`A -> B` means file `A` imports file `B`. A specifier resolves in this order:
+
+1. Relative paths join the importer's directory. Paths leaving the repository are rejected.
+2. `tsconfig` `paths` entries match by longest prefix. A match never falls through to a package.
+3. `tsconfig` `baseUrl` is tried for bare paths.
+4. `@/x` and `~/x` with no definition are `unknown_alias`. Other bare specifiers are external.
+
+Candidates are the exact path, ESM extension mappings (`.js` to `.ts` or `.tsx`, `.jsx` to `.tsx`, `.mjs` to `.mts`, `.cjs` to `.cts`), then `.ts`, `.tsx`, `/index.ts` and `/index.tsx`. Only supported, non-excluded source files can be targets, and anything else gets a reason instead of an edge.
+
+## Coverage
+
+| Field | Definition |
+|---|---|
+| `parsed_file_count` | Source files with a syntax tree, including `partial_file_count` with syntax errors |
+| `skipped_file_count` | Source files over a limit, unparseable, or LFS pointers |
+| `resolved_import_count` | Import statements resolved to a local file. Several can share one edge |
+| `external_import_count` | Import statements classified as packages |
+| `unresolved_import_count` | Import statements that are neither, by reason |
+
+The share of local imports resolved is `resolved / (resolved + unresolved)`.
+
+## Graph metrics
+
+- **Degrees** count distinct files, whatever the number or kind of imports between a pair.
+- **Cycles** are strongly connected components with more than one file, plus self-imports. Member lists are sorted. A cycle is `type_only` if none of its files is in a cycle without `import type` edges, since such edges are erased at compile time.
+- **Reverse reachability** is a breadth-first search over incoming edges, giving each dependent's shortest distance. Phase 3 uses it.
+
 ## Verification
 
 Besides the fixture, Phase 1 was checked against the `git` CLI on `sindresorhus/ky` (592 first-parent commits, one manual run, not part of CI):
@@ -57,3 +97,13 @@ Besides the fixture, Phase 1 was checked against the `git` CLI on `sindresorhus/
 - 9 of the 10 most changed files matched `git log --follow --numstat` exactly on commits and lines.
 - The 10th differed because `git` scored a rename at 47% and libgit2 at 50% or more. Its totals reconcile exactly with a two-path `git log`.
 - Whole-history file-change rows reconcile: 1,914 against 1,917, explained by 3 extra renames that each merge a delete and an add.
+
+Phase 2 edges were compared with the TypeScript compiler's `resolveModuleName`, in a manual run outside CI, on three repositories:
+
+| Repository | Files | Edges | Result |
+|---|---:|---:|---|
+| `sindresorhus/ky` | 98 | 182 | Identical sets |
+| `shadcn-ui/taxonomy` (uses `@/` aliases) | 123 | 247 | Identical sets |
+| `colinhacks/zod` (monorepo) | 515 | 640 | Every edge resolves the same when given to the compiler |
+
+For `zod`, the check script found 634 edges because TypeScript's `preProcessFile` scanner skipped 6 `export * as x from` lines. The Phase 2 `zod` figures exclude its docs package's own aliases, which are out of scope and reported as `unknown_alias`.

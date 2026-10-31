@@ -19,11 +19,18 @@ Tables are added in the phase that first uses them ([ADR 0004](decisions/0004-fo
 | `run_commits` | First-parent order for a run |
 | `file_identities`, `file_paths` | Files followed through renames, with the positions each path was valid |
 | `file_changes` | Every file change in a run, including excluded ones and why |
+| `parsed_blobs` | Parse cache, keyed by blob id, parser version and language |
+| `snapshots` | One import snapshot per repository, commit, parser version and `config_hash`, with coverage |
+| `snapshot_files` | Source files at a commit |
+| `dependency_edges` | Resolved imports, where `source_path` imports `target_path` |
+| `unresolved_imports` | Imports with no edge, and why |
 
 A completed run is a cache entry. A partial unique index allows one completed run per repository, target commit, parser version, algorithm version, `config_hash` and `history_limit`. Failed runs can repeat and hold no history, because history is written in one transaction.
 
 Identities and changes belong to a run, since they depend on the walked history and on rename settings. Each new commit at the tip therefore reindexes in full until incremental indexing arrives.
 
 Spans use first-parent positions rather than commit ids. Positions are linear, which avoids pretending that commit ids in a DAG form a time interval.
+
+Snapshots belong to a commit rather than a run, so runs can share them, and parsing depends only on content, so unchanged files are parsed once across all commits. The language is in the cache key because `.ts` and `.tsx` grammars can parse the same bytes differently.
 
 Author names and emails are not stored, because no v1 feature needs them.

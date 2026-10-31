@@ -1,13 +1,13 @@
 # Architecture
 
-Status: Phase 1. Crates marked *reserved* contain no behaviour yet.
+Status: Phase 2.
 
 ```text
 Local repository (read-only)
         |
-   atlas-git ------- atlas-parser (reserved)
+   atlas-git ------- atlas-parser, atlas-graph
         |                  |
-        +-----> atlas-analysis, atlas-graph (reserved)
+        +-----> atlas-analysis
                         |
                   atlas-storage -- SQLite in the OS cache directory
                         |
@@ -26,11 +26,12 @@ atlas-model: shared by every crate
 |---|---|---|
 | `atlas-model` | Identifiers, DTOs, configuration, error model. No Git, SQLite or HTTP | Working |
 | `atlas-git` | Read-only commits, first-parent walks, diffs, renames, exclusions | Working |
-| `atlas-analysis` | Identity lineage, churn, the indexing pipeline, the overview | Working; co-change, impact and backtests to come |
+| `atlas-analysis` | Identity lineage, churn, the indexing pipeline, snapshots, read models | Working; co-change, impact and backtests to come |
 | `atlas-storage` | SQLite connection, migrations, history persistence | Working |
-| `atlas-api` | HTTP translation, background jobs, request guard | Working |
-| `atlas-cli` | The `codeatlas` binary | `analyze`, `overview` and `serve` working; the rest report their phase |
-| `atlas-parser`, `atlas-graph` | Imports and graphs | Reserved |
+| `atlas-api` | HTTP translation, background jobs, request guard, static dashboard | Working |
+| `atlas-cli` | The `codeatlas` binary | `analyze`, `overview`, `graph` and `serve` working; the rest report their phase |
+| `atlas-parser` | TS/TSX import extraction, resolution, `tsconfig` aliases | Working |
+| `atlas-graph` | Directed graph, cycles, reverse reachability | Working |
 | `atlas-fixtures` (`fixtures/generator`) | Deterministic fixture repositories, for tests only | Working |
 
 Integration tests live beside the crates they exercise, in `crates/*/tests`.
@@ -56,4 +57,6 @@ Repository content, Git metadata and filenames are untrusted.
 - `git2` is built without network features, so OpenSSL and libssh2 are not linked.
 - Repositories open without searching parent directories, and tests prove analysis leaves every file byte-identical and runs no hooks.
 - Repository config cannot change rename detection, because the find flags are explicit.
+- Source files are parsed, never evaluated. Snapshots read Git blobs at the commit, so working tree files cannot leak in, and a cursor walk keeps deep nesting from overflowing the stack.
+- Served pages carry a Content Security Policy that blocks inline scripts and outside connections.
 - Commit subjects and CLI text output replace control characters, which blocks terminal escape injection. The dashboard renders all repository text as text.

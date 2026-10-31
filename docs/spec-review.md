@@ -33,7 +33,7 @@ Section 6 resolves only relative paths to `.ts`, `.tsx`, `/index.ts` and `/index
 
 The fixture would pass while a real repository produced a sparse graph, leaving impact rankings and backtests with little static evidence.
 
-**Resolution (Phase 2):** add `.js`, `.jsx`, `.mjs` and `.cjs` specifier mapping, `.mts` and `.cts` files, and literal dynamic imports as a distinct edge type. Define `parser_coverage` as resolved local imports divided by all non-external imports, with counts per failure reason.
+**Resolved in Phase 2:** add `.js`, `.jsx`, `.mjs` and `.cjs` specifier mapping, `.mts` and `.cts` files, and literal dynamic imports as a distinct edge type. Coverage reports resolved and unresolved counts with reasons; see [algorithms.md](algorithms.md).
 
 **Decided:** limited `tsconfig` `paths` and `baseUrl` support moves into v1, in Phase 2. It reads only the root `tsconfig.json` from the Git blob at each commit, with no `extends` chains or monorepo workspaces ([ADR 9](decisions/0009-tsconfig-paths-in-v1.md)).
 
@@ -64,13 +64,13 @@ Resolved in Phase 1, each with a test:
 - History is ordered by first-parent position, never by timestamp.
 - Shallow history is detected and shown as a warning.
 
-Git LFS pointers remain for Phase 2, where parsing must skip them.
+Phase 2 skips Git LFS pointers when parsing.
 
 Building Phase 1 also found one thing the specification should warn about: the history limit changes results, so it belongs in the cache key alongside `config_hash`.
 
 ## Data model changes
 
-Phase 1 applied the `run_commits` and `commits` changes, and placed identities on the run. The rest apply as each table is introduced.
+Phases 1 and 2 applied the `run_commits`, `commits`, `snapshots` and `parsed_blobs` changes, and placed identities on the run. The rest apply as each table is introduced.
 
 | Table | Problem | Change |
 |---|---|---|
@@ -96,11 +96,11 @@ Phase 1 applied the `run_commits` and `commits` changes, and placed identities o
 
 ## Planning gaps
 
-- **Serving the dashboard:** no section says how the built frontend reaches a user, yet Phase 6 requires a one-command demo on a clean machine. Serve `apps/web/dist` from `codeatlas serve`, embedded in the release binary, and add this to Phase 2.
-- **Parse caching comes too late:** section 16 and Phase 6 add blob caching, but a Phase 5 backtest parses a snapshot for every case. Move the blob cache to Phase 2.
+- **Serving the dashboard:** resolved in Phase 2. `codeatlas serve` serves `apps/web/dist` from disk rather than embedding it ([ADR 10](decisions/0010-serve-dashboard-from-disk.md)).
+- **Parse caching came too late:** resolved in Phase 2 with `parsed_blobs`, ahead of the Phase 5 backtest that parses a snapshot for every case.
 - **Fixture generator:** done in Phase 1 as `atlas-fixtures`, a Rust crate that is the only writer of repositories in the workspace, with fixed dates so object ids are reproducible.
-- **`.ts` and `.tsx` need separate grammars**, since `<T>x` parses differently. Add this to the Phase 2 test list.
-- **UI verification:** Playwright arrives only in Phase 6, so Phases 2 to 5 exit on unverified UI claims. Introduce it in Phase 2 with one smoke flow.
+- **`.ts` and `.tsx` need separate grammars**, since `<T>x` parses differently. Phase 2 tests this, including in the parse cache.
+- **UI verification:** resolved in Phase 2 with a Playwright flow in CI. It was needed: it found a first-run Analyze bug that unit tests and a manual check had missed.
 - **Default excludes:** add lockfiles once non-TS files are analyzed.
 - **Repository access:** "local configured workspace" in section 12 is undefined. For v1, treat it as any path the local user explicitly opens, and record that in `limitations.md` when Phase 1 builds it.
 - **The specification itself** is not in the repository, although its prompt expects to read it there. It is written as agent instructions, so a public repository may prefer it under `docs/`, renamed.
