@@ -5,6 +5,7 @@
 - Rankings were measured on six held-out repositories, which is a small sample. See [evaluation.md](evaluation.md).
 - Benchmarks come from one machine and a few repositories. See [benchmarks.md](benchmarks.md).
 - `codeatlas serve` serves the dashboard from `apps/web/dist`, so a binary alone serves only the API, and it must run from the repository root or be given `--web-dir`.
+- The dashboard is designed for desktop windows. It was checked at 768px wide and above, and phones are not supported.
 - Only macOS arm64 has been tested locally, and Linux runs in CI. Windows is untested.
 - Stopping takes effect at the next step, so one huge diff runs to its end first ([ADR 16](decisions/0016-stop-work-through-the-database-session.md)). Requests stop after `server.query_timeout_seconds` (default 120). A browser that disconnects does not stop its request sooner.
 - Jobs live in memory, so job ids and the Recent jobs list do not survive a restart. Results do.

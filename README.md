@@ -34,6 +34,23 @@ It beat the baseline on all six, though on one the margin is within the error ba
 |---|---|
 | ![Time Machine comparing two commits](docs/images/time-machine.png) | ![Backtesting results against baselines](docs/images/backtesting.png) |
 
+## How it works
+
+```mermaid
+flowchart LR
+    repo[("Local Git repository<br/>read-only")] --> git["atlas-git<br/>commits, diffs, renames"]
+    repo --> parser["atlas-parser<br/>TS and TSX imports"]
+    parser --> graph["atlas-graph<br/>cycles, reachability"]
+    git --> analysis["atlas-analysis<br/>impact, comparison, backtests"]
+    graph --> analysis
+    analysis <--> storage[("SQLite<br/>outside the repository")]
+    analysis --> cli["codeatlas CLI"]
+    analysis --> api["Local API<br/>127.0.0.1 only"]
+    api --> web["React dashboard"]
+```
+
+The Rust engine works without the dashboard, and the dashboard contains no analysis logic. [docs/architecture.md](docs/architecture.md) has the details.
+
 Large repositories open on a directory map, shown here on `nestjs/nest`:
 
 ![Directory map of nestjs/nest, with arrows for imports between directories](docs/images/directory-map.png)

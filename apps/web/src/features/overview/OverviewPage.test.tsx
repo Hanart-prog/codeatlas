@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -71,6 +71,38 @@ function stubAnalyzed(result: OverviewResponse = overview) {
     },
   });
 }
+
+describe("recent repositories", () => {
+  it("opens one with saved results, newest first, and leaves out the rest", async () => {
+    localStorage.setItem("codeatlas-repository", "1");
+    const older = { id: 2, path: "/work/older", analyzed_at: 10 };
+    const newer = { id: 3, path: "/work/newer", analyzed_at: 20 };
+    const never = { id: 4, path: "/work/never", analyzed_at: null };
+    const fetchMock = stubRoutes({
+      "/health": { body: healthyBody },
+      "/repositories": { body: [repository, older, newer, never] },
+      "/repositories/1/overview": { body: overview },
+      "/repositories/3/overview": { body: overview },
+      "/repositories/1/commits": { body: { commits: [], next_cursor: null } },
+      "/repositories/3/commits": { body: { commits: [], next_cursor: null } },
+      "/repositories/1/jobs": { body: [] },
+      "/repositories/3/jobs": { body: [] },
+    });
+    renderWithQuery(<Page />);
+
+    const list = await screen.findByRole("list", { name: "Recent repositories" });
+    const names = within(list).getAllByRole("button").map((button) => button.textContent);
+    expect(names).toEqual(["newer/work/newer", "older/work/older"]);
+
+    await userEvent.click(within(list).getByRole("button", { name: /newer/ }));
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([url]) => url.endsWith("/repositories/3/overview"))).toBe(true),
+    );
+    expect(screen.getByLabelText(/Absolute path/)).toHaveValue("/work/newer");
+    expect(fetchMock.mock.calls.some(([url]) => url.includes("/analyze"))).toBe(false);
+    localStorage.removeItem("codeatlas-repository");
+  });
+});
 
 describe("closing a repository", () => {
   it("returns to the empty start, stays there after a reload, and can open again", async () => {

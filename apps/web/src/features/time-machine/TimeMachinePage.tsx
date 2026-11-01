@@ -17,7 +17,7 @@ import { buildOverlay } from "./overlay";
 import { TimelineCharts } from "./TimelineCharts";
 
 const COMMIT_CHOICES = 200;
-const FIELD = "h-9 w-full rounded-md border bg-card px-2 text-sm";
+const FIELD = "h-9 w-full rounded-md border bg-card px-3 text-sm";
 const LIMITATION =
   "These are changes in static imports between two commits. An added or removed import says what the source declares, not what runs.";
 

@@ -54,10 +54,10 @@ export function App() {
         Skip to content
       </a>
 
-      <aside className="flex w-56 shrink-0 flex-col border-r bg-sidebar">
+      <aside className="flex w-14 shrink-0 flex-col border-r bg-sidebar lg:w-56">
         <div className="flex h-14 items-center gap-2.5 px-4">
           <img src="/favicon.svg" alt="" className="size-6" />
-          <span className="text-[15px] font-semibold tracking-tight">CodeAtlas</span>
+          <span className="sr-only text-[15px] font-semibold tracking-tight lg:not-sr-only">CodeAtlas</span>
         </div>
         <nav aria-label="Primary" className="flex-1 space-y-0.5 px-2">
           {ROUTES.map((item) => {
@@ -69,25 +69,25 @@ export function App() {
                 href={`#/${item.id}`}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+                  "flex items-center justify-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors lg:justify-start",
                   active
                     ? "bg-muted font-medium text-foreground shadow-card"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 <Icon aria-hidden className={cn("size-4 shrink-0", item.tint)} />
-                <span className="flex-1">{item.label}</span>
+                <span className="sr-only flex-1 lg:not-sr-only">{item.label}</span>
               </a>
             );
           })}
         </nav>
-        <p className="p-4 text-xs leading-relaxed text-muted-foreground">
+        <p className="hidden p-4 text-xs leading-relaxed text-muted-foreground lg:block">
           Runs locally. Analyzed repositories are read-only and their code is never executed.
         </p>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="mx-auto flex h-14 w-full max-w-[calc(72rem+4rem)] shrink-0 items-center justify-between gap-4 px-8">
+        <header className="mx-auto flex h-14 w-full max-w-[calc(72rem+4rem)] shrink-0 items-center justify-between gap-4 px-4 md:px-8">
           <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
             {selection.repository?.path ?? "No repository open"}
           </span>
@@ -105,14 +105,14 @@ export function App() {
         </header>
         <ApiOfflineBanner />
         {selection.repository?.path.endsWith("/demo/product") && (
-          <div className="px-8">
+          <div className="px-4 md:px-8">
             <p role="note" className="mx-auto mb-2 max-w-6xl text-xs text-muted-foreground">
               Generated sample repository. Its history was built to show how the tool works, so its results, including
               backtests, say nothing about real projects.
             </p>
           </div>
         )}
-        <main id="main" tabIndex={-1} className="flex-1 overflow-y-auto px-8 pt-2 pb-12 outline-none">
+        <main id="main" tabIndex={-1} className="flex-1 overflow-y-auto px-4 pt-2 pb-12 outline-none md:px-8">
           {route.id === "explorer" ? (
             <Suspense fallback={<Skeleton aria-label="Loading explorer" className="h-[520px] w-full" />}>
               <ExplorerPage repository={selection.repository} theme={theme} />

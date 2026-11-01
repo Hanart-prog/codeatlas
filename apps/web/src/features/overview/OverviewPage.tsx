@@ -12,6 +12,7 @@ import type { HealthResponse } from "@/types/generated/HealthResponse";
 
 import { OpenRepositoryForm } from "./OpenRepositoryForm";
 import { RecentJobs } from "./RecentJobs";
+import { RecentRepositories } from "./RecentRepositories";
 import { RepositoryOverview } from "./RepositoryOverview";
 
 function Fact({ label, value }: { label: string; value: string }) {
@@ -103,6 +104,13 @@ function RepositorySection({ repository, select, close }: SelectedRepository) {
         </CardHeader>
         <CardContent>
           <OpenRepositoryForm key={closings} initialPath={repository?.path ?? ""} onAnalyzed={select} />
+          <RecentRepositories
+            current={repository}
+            onOpen={(id) => {
+              select(id);
+              setClosings((count) => count + 1);
+            }}
+          />
           {notAnalyzed && <p className="mt-3 text-sm text-muted-foreground">This repository has not been analyzed yet.</p>}
           {overview.error && !notAnalyzed && (
             <p role="alert" className="mt-3 text-sm text-destructive">

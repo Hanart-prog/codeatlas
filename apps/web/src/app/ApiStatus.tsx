@@ -13,7 +13,7 @@ export function ApiStatus() {
         : ["API degraded", "bg-warning"];
 
   return (
-    <span role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
+    <span role="status" className="flex items-center gap-2 text-xs whitespace-nowrap text-muted-foreground">
       <span aria-hidden className={cn("size-2 rounded-full", tone)} />
       {label}
     </span>
