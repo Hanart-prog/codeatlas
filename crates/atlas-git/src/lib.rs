@@ -7,6 +7,8 @@
 
 mod exclusions;
 
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use atlas_model::history::{
@@ -15,7 +17,7 @@ use atlas_model::history::{
 use atlas_model::{AnalysisConfig, AtlasError, CommitSummary, Limits, Oid, RepoPath};
 use git2::{
     Commit, Delta, DiffFindOptions, DiffOptions, FileMode, ObjectType, Patch, Repository,
-    RepositoryOpenFlags, TreeWalkMode, TreeWalkResult,
+    RepositoryOpenFlags, Tree, TreeWalkMode, TreeWalkResult,
 };
 use thiserror::Error;
 
@@ -27,14 +29,20 @@ const RENAME_LIMIT: usize = 1000;
 /// Longest stored commit subject, in characters.
 const MAX_SUBJECT_CHARS: usize = 200;
 
+/// Far beyond real repositories, and low enough to stay within memory.
+const MAX_TREE_PATHS: u64 = 2_000_000;
+const MAX_TREE_DEPTH: u32 = 512;
+
 /// Failures from reading a repository.
 #[derive(Debug, Error)]
 pub enum GitError {
     /// The path is not a readable Git repository.
-    #[error("{path} is not a Git repository")]
+    #[error("{path} is not a Git repository: {reason}")]
     NotARepository {
         /// The path that was tried.
         path: String,
+        /// Why it was rejected, and what to do instead.
+        reason: String,
     },
     /// The reference does not name a commit.
     #[error("{reference:?} does not name a commit")]
@@ -45,6 +53,12 @@ pub enum GitError {
     /// The repository has no commits.
     #[error("the repository has no commits")]
     Empty,
+    /// A tree holds more paths than can be analyzed safely.
+    #[error("a commit has more than {limit} paths, which is too many to analyze")]
+    TooLarge {
+        /// The limit that was exceeded.
+        limit: u64,
+    },
     /// An exclusion glob is invalid.
     #[error("invalid exclusion glob: {0}")]
     InvalidGlob(String),
@@ -59,6 +73,7 @@ impl From<GitError> for AtlasError {
             GitError::NotARepository { .. } | GitError::UnknownRef { .. } | GitError::Empty => {
                 Self::InvalidInput(error.to_string())
             }
+            GitError::TooLarge { .. } => Self::TooLarge(error.to_string()),
             GitError::InvalidGlob(_) => Self::Config(error.to_string()),
             GitError::Git(_) => Self::Git(error.to_string()),
         }
@@ -68,6 +83,10 @@ impl From<GitError> for AtlasError {
 /// A repository opened for reading.
 pub struct GitRepository {
     repository: Repository,
+    root: PathBuf,
+    /// Paths under each tree seen so far, so that repeated subtrees cost one
+    /// lookup however many times they are nested.
+    tree_paths: RefCell<HashMap<git2::Oid, u64>>,
 }
 
 /// A regular file in a commit's tree.
@@ -102,27 +121,39 @@ pub struct FirstParentHistory {
 impl GitRepository {
     /// Opens exactly the repository at `path`, without searching parent
     /// directories, so a path inside another repository cannot open that one.
+    ///
+    /// It always opens as bare. Results then depend only on commits: the working
+    /// tree and its `.gitattributes` play no part, and `core.worktree`, which the
+    /// repository controls, cannot make it claim to be another repository.
     pub fn open(path: &Path) -> Result<Self, GitError> {
-        let not_a_repository = || GitError::NotARepository {
+        let failure = |reason: &str| GitError::NotARepository {
             path: path.display().to_string(),
+            reason: reason.to_owned(),
         };
-        let canonical = path.canonicalize().map_err(|_| not_a_repository())?;
-        let repository = Repository::open_ext(
-            &canonical,
-            RepositoryOpenFlags::NO_SEARCH,
-            std::iter::empty::<&std::ffi::OsStr>(),
-        )
-        .map_err(|_| not_a_repository())?;
-        Ok(Self { repository })
+        let canonical = path.canonicalize().map_err(|_| failure("no such folder"))?;
+        if !canonical.is_dir() {
+            return Err(failure("it is a file, not a folder"));
+        }
+        let open = |path: &Path, flags| {
+            Repository::open_ext(path, flags, std::iter::empty::<&std::ffi::OsStr>())
+                .map_err(|_| failure("pass the folder that contains .git"))
+        };
+        // Bare mode does not look inside `.git`, so find the Git directory first.
+        let located = open(&canonical, RepositoryOpenFlags::NO_SEARCH)?;
+        let repository = open(
+            located.path(),
+            RepositoryOpenFlags::NO_SEARCH | RepositoryOpenFlags::BARE,
+        )?;
+        Ok(Self {
+            repository,
+            root: canonical,
+            tree_paths: RefCell::default(),
+        })
     }
 
-    /// The stable location of this repository: its worktree, or its Git
-    /// directory when bare.
+    /// The stable location of this repository: the folder it was opened at.
     pub fn canonical_path(&self) -> PathBuf {
-        self.repository
-            .workdir()
-            .unwrap_or_else(|| self.repository.path())
-            .to_path_buf()
+        self.root.clone()
     }
 
     /// Whether older history is missing because this is a shallow clone.
@@ -177,6 +208,7 @@ impl GitRepository {
         let commit = self.commit(oid)?;
         let record = commit_record(&commit)?;
         let tree = commit.tree()?;
+        self.check_tree_size(&tree)?;
         let parent_tree = match commit.parent_count() {
             0 => None,
             _ => Some(commit.parent(0)?.tree()?),
@@ -319,6 +351,7 @@ impl GitRepository {
     /// Counts the files in a commit's tree.
     pub fn tree_summary(&self, oid: &Oid, rules: &ExclusionRules) -> Result<TreeSummary, GitError> {
         let tree = self.commit(oid)?.tree()?;
+        self.check_tree_size(&tree)?;
         let mut summary = TreeSummary::default();
         tree.walk(TreeWalkMode::PreOrder, |root, entry| {
             let regular_file = entry.kind() == Some(ObjectType::Blob)
@@ -345,6 +378,7 @@ impl GitRepository {
     /// left out because they have no source content here.
     pub fn tree_files(&self, oid: &Oid) -> Result<TreeListing, GitError> {
         let tree = self.commit(oid)?.tree()?;
+        self.check_tree_size(&tree)?;
         let mut listing = TreeListing::default();
         tree.walk(TreeWalkMode::PreOrder, |root, entry| {
             if entry.kind() != Some(ObjectType::Blob)
@@ -375,6 +409,38 @@ impl GitRepository {
     pub fn read_blob(&self, oid: &Oid) -> Result<Vec<u8>, GitError> {
         let id = git2::Oid::from_str(oid.as_str())?;
         Ok(self.repository.find_blob(id)?.content().to_vec())
+    }
+
+    /// Refuses a tree before anything expands it. A small repository can reuse
+    /// one subtree at every level and describe billions of paths.
+    fn check_tree_size(&self, tree: &Tree<'_>) -> Result<(), GitError> {
+        match self.paths_under(tree, 0)? {
+            count if count > MAX_TREE_PATHS => Err(GitError::TooLarge {
+                limit: MAX_TREE_PATHS,
+            }),
+            _ => Ok(()),
+        }
+    }
+
+    fn paths_under(&self, tree: &Tree<'_>, depth: u32) -> Result<u64, GitError> {
+        if depth > MAX_TREE_DEPTH {
+            return Err(GitError::TooLarge {
+                limit: MAX_TREE_PATHS,
+            });
+        }
+        if let Some(&count) = self.tree_paths.borrow().get(&tree.id()) {
+            return Ok(count);
+        }
+        let mut count = 0u64;
+        for entry in tree {
+            count = count.saturating_add(if entry.kind() == Some(ObjectType::Tree) {
+                self.paths_under(&self.repository.find_tree(entry.id())?, depth + 1)?
+            } else {
+                1
+            });
+        }
+        self.tree_paths.borrow_mut().insert(tree.id(), count);
+        Ok(count)
     }
 
     fn commit(&self, oid: &Oid) -> Result<Commit<'_>, GitError> {

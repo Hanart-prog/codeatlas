@@ -22,8 +22,8 @@ function HistoryNote({ response }: { response: ImpactResponse }) {
     <p className="text-xs text-muted-foreground">
       As of {response.cutoff.slice(0, 10)}: {history.commit_count} first-parent commits read,{" "}
       {history.eligible_commit_count} eligible, {history.bulk_commit_count} over the {history.bulk_threshold}-file bulk
-      limit, {history.no_eligible_file_commit_count} with no TS or TSX files. History needs{" "}
-      {history.min_shared_commits} shared commits. {response.candidate_count} files had evidence.
+      limit, {history.no_eligible_file_commit_count} with no TS or TSX files. {response.candidate_count} files were
+      ranked.
       {history.is_shallow && " Shallow clone: older history is missing."}
       {history.is_truncated && " The window cut off older history."}
     </p>

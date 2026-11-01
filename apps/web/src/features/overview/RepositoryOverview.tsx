@@ -130,6 +130,12 @@ export function RepositoryOverview({ overview }: { overview: OverviewResponse })
 
   return (
     <>
+      {overview.head_oid !== null && overview.head_oid !== run.target_oid && (
+        <Warning>{`The repository has moved on: HEAD is ${shortOid(overview.head_oid)}, but this analysis covers ${shortOid(run.target_oid)}. Analyze it again to include newer commits.`}</Warning>
+      )}
+      {overview.files.tip_typescript_file_count === 0 && (
+        <Warning>This repository has no TS or TSX files. CodeAtlas analyzes only TypeScript, so its graph, impact and backtest pages will be empty.</Warning>
+      )}
       {history.is_shallow && <Warning>Shallow clone: older history is missing, so metrics are incomplete.</Warning>}
       {history.is_truncated && (
         <Warning>{`The history limit of ${run.history_limit} commits cut off older history.`}</Warning>

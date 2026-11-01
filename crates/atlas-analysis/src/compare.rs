@@ -10,7 +10,7 @@ use atlas_model::{
     ArchitectureSummary, AtlasConfig, AtlasError, CommitRelation, CompareCounts, CompareRequest,
     CompareResponse, Cycle, CycleChange, DependencyEdgeType, FileMetricChange, FileRename,
     GraphEdge, GraphNode, ImportChange, Oid, ParseStatus, ParserCoverage, RenameEvidence, RepoPath,
-    RepositoryEntry,
+    RepositoryEntry, TsconfigStatus,
 };
 use atlas_storage::Database;
 
@@ -204,9 +204,10 @@ fn coverage_notes(base: &ParserCoverage, target: &ParserCoverage) -> Vec<String>
     let mut notes = Vec::new();
     if base.tsconfig != target.tsconfig {
         notes.push(format!(
-            "tsconfig.json was {:?} at the base and {:?} at the target, so alias resolution is \
-             not the same on both sides.",
-            base.tsconfig, target.tsconfig
+            "tsconfig.json was {} at the base and {} at the target, so alias resolution is not \
+             the same on both sides.",
+            tsconfig_state(base.tsconfig),
+            tsconfig_state(target.tsconfig)
         ));
     }
     let skipped = base.skipped_file_count + target.skipped_file_count;
@@ -240,6 +241,15 @@ fn coverage_notes(base: &ParserCoverage, target: &ParserCoverage) -> Vec<String>
         ));
     }
     notes
+}
+
+fn tsconfig_state(status: TsconfigStatus) -> &'static str {
+    match status {
+        TsconfigStatus::Absent => "missing",
+        TsconfigStatus::Applied => "applied",
+        TsconfigStatus::AppliedIgnoringExtends => "applied without its extends",
+        TsconfigStatus::Invalid => "invalid",
+    }
 }
 
 fn summary(

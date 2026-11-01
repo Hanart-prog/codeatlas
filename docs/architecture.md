@@ -1,6 +1,6 @@
 # Architecture
 
-Status: Phase 4.
+Status: Phase 5.
 
 ```text
 Local repository (read-only)
@@ -26,10 +26,10 @@ atlas-model: shared by every crate
 |---|---|---|
 | `atlas-model` | Identifiers, DTOs, configuration, error model. No Git, SQLite or HTTP | Working |
 | `atlas-git` | Read-only commits, first-parent walks, diffs, renames, exclusions | Working |
-| `atlas-analysis` | Identity lineage, churn, the indexing pipeline, snapshots, read models, co-change, impact ranking, architecture comparison | Working; backtests to come |
+| `atlas-analysis` | Identity lineage, churn, the indexing pipeline, snapshots, read models, co-change, impact ranking, architecture comparison, backtesting | Working |
 | `atlas-storage` | SQLite connection, migrations, history persistence | Working |
 | `atlas-api` | HTTP translation, background jobs, request guard, static dashboard | Working |
-| `atlas-cli` | The `codeatlas` binary | `analyze`, `overview`, `graph`, `impact`, `compare` and `serve` working; the rest report their phase |
+| `atlas-cli` | The `codeatlas` binary | `analyze`, `overview`, `graph`, `impact`, `compare`, `timeline`, `backtest` and `serve` working; the rest report their phase |
 | `atlas-parser` | TS/TSX import extraction, resolution, `tsconfig` aliases | Working |
 | `atlas-graph` | Directed graph, cycles, reverse reachability | Working |
 | `atlas-fixtures` (`fixtures/generator`) | Deterministic fixture repositories, for tests only | Working |
@@ -43,7 +43,8 @@ The engine does not depend on the API or the frontend, so it works without React
 - **Edge direction:** `A -> B` means file `A` imports file `B`. Reverse traversal from `B` finds files that `B` may impact.
 - **Evidence stays separate:** `DependencyEdgeType` covers static evidence only. Co-change is correlation and has its own types, fields and display.
 - **Comparison:** two commits are diffed from their snapshots, with base paths carried through renames first, so a rename alone changes no import or cycle ([ADR 12](decisions/0012-compare-trees-directly.md)). The timeline reads the same snapshots at evenly spaced commits.
-- **No look-ahead:** impact walks Git from the cutoff commit and reads the snapshot of that commit, so later history is never read ([ADR 11](decisions/0011-compute-impact-from-the-cutoff.md)).
+- **Bare opens:** analyzed repositories are opened as bare, so results depend only on commits, and a tree size check runs before anything expands a tree.
+- **No look-ahead:** impact walks Git from the cutoff commit and reads the snapshot of that commit, so later history is never read ([ADR 11](decisions/0011-compute-impact-from-the-cutoff.md)). A backtest gives each case a history slice ending at its parent and ranks through the same function ([ADR 13](decisions/0013-rank-backtests-through-change-impact.md)).
 - **Output streams:** results go to stdout, diagnostics to stderr.
 - **Shared types:** Rust DTOs generate the TypeScript in `apps/web/src/types/generated`. A test fails when the two drift ([ADR 0005](decisions/0005-generated-api-types.md)).
 

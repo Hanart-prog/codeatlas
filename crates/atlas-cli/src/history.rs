@@ -3,6 +3,7 @@
 use std::path::Path;
 
 use atlas_analysis::{AnalyzeOptions, analyze as run_analysis, find_repository, overview as load};
+use atlas_model::history::ExclusionReason;
 use atlas_model::{AtlasConfig, AtlasError, OverviewResponse};
 use atlas_storage::Database;
 
@@ -22,7 +23,17 @@ pub fn analyze(args: AnalyzeArgs, config: &AtlasConfig, data_dir: &Path) -> Resu
     if outcome.cached {
         tracing::info!("reused the completed analysis of this commit");
     }
-    print(&load(&database, outcome.repository.id)?, args.format)
+    if let Some(reason) = &outcome.graph_skipped {
+        eprintln!("warning: no import graph was built: {reason}");
+    }
+    let overview = load(&database, outcome.repository.id)?;
+    print(&overview, args.format)?;
+    if matches!(args.format, OutputFormat::Text) && overview.files.tip_typescript_file_count > 0 {
+        let repo = safe(&overview.repository.path);
+        println!("\nNext: codeatlas serve {repo}");
+        println!("  or: codeatlas impact {repo} --file <path from the repository root>");
+    }
+    Ok(())
 }
 
 pub fn overview(args: OverviewArgs, data_dir: &Path) -> Result<(), AtlasError> {
@@ -51,6 +62,28 @@ pub(crate) fn safe(text: &str) -> String {
         .collect()
 }
 
+fn exclusion_label(reason: ExclusionReason) -> &'static str {
+    match reason {
+        ExclusionReason::Binary => "binary files",
+        ExclusionReason::Oversized => "over the file size limit",
+        ExclusionReason::Symlink => "symlinks",
+        ExclusionReason::Submodule => "submodules",
+        ExclusionReason::Rule => "vendored or generated paths",
+    }
+}
+
+/// Says so when these results do not reach the repository's current commit.
+pub(crate) fn stale_warning(overview: &OverviewResponse) -> Option<String> {
+    let head = overview.head_oid.as_ref()?;
+    (head != &overview.run.target_oid).then(|| {
+        format!(
+            "HEAD is {}, but the analysis covers {}. Run `codeatlas analyze` to include it.",
+            &head.as_str()[..10],
+            &overview.run.target_oid.as_str()[..10]
+        )
+    })
+}
+
 fn counted(count: u32, noun: &str) -> String {
     let plural = if count == 1 { "" } else { "s" };
     format!("{count} {noun}{plural}")
@@ -64,6 +97,7 @@ fn print_text(overview: &OverviewResponse) {
         files,
         exclusions,
         top_churn,
+        head_oid: _,
     } = overview;
 
     println!("{}", safe(&repository.path));
@@ -90,7 +124,7 @@ fn print_text(overview: &OverviewResponse) {
         println!(
             "  excluded         {}: {}",
             counted(exclusion.count, "change"),
-            exclusion.reason.as_str()
+            exclusion_label(exclusion.reason)
         );
     }
     if files.unreadable_path_count > 0 {
@@ -98,6 +132,15 @@ fn print_text(overview: &OverviewResponse) {
             "  skipped          {} with unreadable paths",
             counted(files.unreadable_path_count, "change")
         );
+    }
+    if files.tip_typescript_file_count == 0 {
+        println!(
+            "  warning          no TS or TSX files: CodeAtlas analyzes only TypeScript, so \
+             graphs, impact and backtests will be empty"
+        );
+    }
+    if let Some(warning) = stale_warning(overview) {
+        println!("  warning          {warning}");
     }
     if history.is_shallow {
         println!("  warning          shallow clone: older history is missing");

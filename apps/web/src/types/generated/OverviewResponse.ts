@@ -3,6 +3,7 @@ import type { ExclusionCount } from "./ExclusionCount";
 import type { FileChurn } from "./FileChurn";
 import type { FileSummary } from "./FileSummary";
 import type { HistorySummary } from "./HistorySummary";
+import type { Oid } from "./Oid";
 import type { RepositoryEntry } from "./RepositoryEntry";
 import type { RunSummary } from "./RunSummary";
 
@@ -33,4 +34,9 @@ exclusions: Array<ExclusionCount>,
 /**
  * Files with the most changes, most active first, ties by path.
  */
-top_churn: Array<FileChurn>, };
+top_churn: Array<FileChurn>, 
+/**
+ * The repository's `HEAD` now, if it can still be read. When it differs from
+ * the analyzed commit, these results do not cover the latest work.
+ */
+head_oid: Oid | null, };

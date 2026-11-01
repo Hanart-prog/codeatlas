@@ -1,0 +1,148 @@
+{
+  "_comment": "Worked out by hand from the commit list in crates/atlas-analysis/tests/backtest.rs, with warm-up 5 and cutoffs 1 and 2. Do not regenerate from engine output. Metrics are [precision, recall, hit rate] means over the 3 evaluated cases.",
+  "coverage": 0.6,
+  "counts": {
+    "commit_count": 10,
+    "no_eligible_file_commits": 0,
+    "bulk_commits": 0,
+    "warmup_commits": 5,
+    "candidate_cases": 5,
+    "too_few_files": 1,
+    "no_input_at_parent": 0,
+    "no_target_at_parent": 1,
+    "evaluable_cases": 3,
+    "evaluated_cases": 3,
+    "merge_cases": 0,
+    "target_files": 4,
+    "new_files_excluded": 0,
+    "renamed_targets": 1,
+    "deleted_targets": 0
+  },
+  "cases": [
+    {
+      "subject": "Change a, b and c",
+      "input": "src/a.ts",
+      "targets": [
+        "src/b.ts",
+        "src/c.ts"
+      ],
+      "combined": [
+        "src/c.ts",
+        "src/b.ts"
+      ],
+      "co_change": [
+        "src/c.ts",
+        "src/d.ts"
+      ],
+      "reverse_dependency": [
+        "src/b.ts"
+      ],
+      "most_changed": [
+        "src/c.ts",
+        "src/d.ts"
+      ]
+    },
+    {
+      "subject": "Change c and d",
+      "input": "src/c.ts",
+      "targets": [
+        "src/d.ts"
+      ],
+      "combined": [
+        "src/a.ts",
+        "src/b.ts"
+      ],
+      "co_change": [
+        "src/a.ts",
+        "src/b.ts"
+      ],
+      "reverse_dependency": [],
+      "most_changed": [
+        "src/a.ts",
+        "src/b.ts"
+      ]
+    },
+    {
+      "subject": "Change a and rename d",
+      "input": "src/a.ts",
+      "targets": [
+        "src/d.ts"
+      ],
+      "combined": [
+        "src/c.ts",
+        "src/b.ts"
+      ],
+      "co_change": [
+        "src/c.ts",
+        "src/b.ts"
+      ],
+      "reverse_dependency": [
+        "src/b.ts"
+      ],
+      "most_changed": [
+        "src/c.ts",
+        "src/d.ts"
+      ]
+    }
+  ],
+  "metrics": {
+    "combined": {
+      "1": [
+        0.333333,
+        0.166667,
+        0.333333
+      ],
+      "2": [
+        0.333333,
+        0.333333,
+        0.333333
+      ]
+    },
+    "co_change": {
+      "1": [
+        0.333333,
+        0.166667,
+        0.333333
+      ],
+      "2": [
+        0.166667,
+        0.166667,
+        0.333333
+      ]
+    },
+    "reverse_dependency": {
+      "1": [
+        0.333333,
+        0.166667,
+        0.333333
+      ],
+      "2": [
+        0.166667,
+        0.166667,
+        0.333333
+      ]
+    },
+    "most_changed": {
+      "1": [
+        0.333333,
+        0.166667,
+        0.333333
+      ],
+      "2": [
+        0.333333,
+        0.5,
+        0.666667
+      ]
+    }
+  },
+  "mean_candidates": {
+    "combined": 3.666667,
+    "co_change": 3.0,
+    "reverse_dependency": 0.666667,
+    "most_changed": 3.666667
+  },
+  "empty_cases": {
+    "reverse_dependency": 1,
+    "combined": 0
+  }
+}

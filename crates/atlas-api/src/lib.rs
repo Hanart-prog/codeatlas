@@ -128,6 +128,10 @@ pub fn router(state: AppState) -> Router {
         .route("/repositories/{id}/impact", post(repositories::impact))
         .route("/repositories/{id}/compare", post(repositories::compare))
         .route("/repositories/{id}/timeline", get(repositories::timeline))
+        .route(
+            "/repositories/{id}/backtests",
+            post(repositories::start_backtest).get(repositories::latest_backtest),
+        )
         .route("/jobs/{id}", get(jobs::get_job))
         .fallback(not_found)
         .method_not_allowed_fallback(method_not_allowed)
@@ -136,7 +140,7 @@ pub fn router(state: AppState) -> Router {
     let routes = Router::new().nest("/api/v1", v1);
     let routes = match state.web_dir {
         Some(directory) => routes.fallback_service(ServeDir::new(directory)),
-        None => routes.fallback(not_found),
+        None => routes.route("/", get(no_dashboard)).fallback(not_found),
     };
 
     routes
@@ -166,6 +170,12 @@ fn cors() -> CorsLayer {
         .allow_origin(DEV_ORIGINS.map(HeaderValue::from_static))
         .allow_methods([Method::GET, Method::POST])
         .allow_headers([header::CONTENT_TYPE])
+}
+
+async fn no_dashboard() -> &'static str {
+    "The CodeAtlas API is running, but the dashboard was not found.\n\
+     Run `make build`, then start `codeatlas serve` from the CodeAtlas folder or pass \
+     --web-dir apps/web/dist.\n"
 }
 
 async fn not_found() -> ApiError {

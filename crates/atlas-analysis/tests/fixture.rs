@@ -396,3 +396,36 @@ fn repository_hooks_and_content_are_never_executed() {
     analyzed(dir.path());
     assert!(!marker.exists());
 }
+
+#[test]
+fn a_file_first_seen_by_a_rename_can_be_stored() {
+    let repo = tempfile::tempdir().unwrap();
+    let mut fixture = FixtureRepo::init(repo.path()).unwrap();
+    fixture
+        .change()
+        .unwrap()
+        .write("a.ts", exports("a", 6))
+        .commit("Older than the window")
+        .unwrap();
+    fixture
+        .change()
+        .unwrap()
+        .rename("a.ts", "b.ts")
+        .commit("Rename inside the window")
+        .unwrap();
+
+    let mut database = Database::open_in_memory().unwrap();
+    let options = AnalyzeOptions {
+        history_limit: 1,
+        ..AnalyzeOptions::default()
+    };
+    let outcome = analyze(
+        &mut database,
+        repo.path(),
+        &options,
+        &AtlasConfig::default(),
+    )
+    .unwrap();
+    let response = overview(&database, outcome.repository.id).unwrap();
+    assert_eq!(response.history.commit_count, 1);
+}

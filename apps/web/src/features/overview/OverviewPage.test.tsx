@@ -53,6 +53,7 @@ const overview: OverviewResponse = {
     },
     { path: "src/gone.ts", exists_at_tip: false, commit_count: 2, added_lines: 5, deleted_lines: 5, previous_paths: [] },
   ],
+  head_oid: oid,
 };
 
 function stubAnalyzed(result: OverviewResponse = overview) {
@@ -131,6 +132,18 @@ describe("OverviewPage", () => {
     renderWithQuery(<Page />);
     expect(await screen.findByText(/Shallow clone/)).toBeInTheDocument();
     expect(screen.getByText(/history limit of 500/)).toBeInTheDocument();
+  });
+
+  it("warns when the repository has moved past the analysis", async () => {
+    stubAnalyzed({ ...overview, head_oid: "b".repeat(40) });
+    renderWithQuery(<Page />);
+    expect(await screen.findByText(/The repository has moved on/)).toBeInTheDocument();
+  });
+
+  it("says when a repository has no TypeScript", async () => {
+    stubAnalyzed({ ...overview, files: { ...overview.files, tip_typescript_file_count: 0 } });
+    renderWithQuery(<Page />);
+    expect(await screen.findByText(/no TS or TSX files/)).toBeInTheDocument();
   });
 
   it("renders commit subjects as text, not HTML", async () => {

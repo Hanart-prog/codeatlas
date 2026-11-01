@@ -1,8 +1,8 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { healthyBody, renderWithQuery, stubFetch } from "@/test/render";
+import { healthyBody, renderWithQuery, stubFetch, stubRoutes } from "@/test/render";
 
 import { App } from "./App";
 
@@ -26,9 +26,26 @@ describe("App", () => {
   it("says plainly when a section is not built", async () => {
     stubFetch(200, healthyBody);
     renderWithQuery(<App />);
-    await userEvent.click(screen.getByRole("link", { name: /Backtesting/ }));
-    expect(await screen.findByRole("heading", { name: "Backtesting" })).toBeInTheDocument();
-    expect(screen.getByText(/planned for Phase 5/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("link", { name: /Reports/ }));
+    expect(await screen.findByRole("heading", { name: "Reports" })).toBeInTheDocument();
+    expect(screen.getByText(/planned for Phase 6/)).toBeInTheDocument();
+  });
+
+  it("says how to start the API when it is down", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("connection refused"))));
+    renderWithQuery(<App />);
+    expect(await screen.findByText(/local API is not running/)).toBeInTheDocument();
+    expect(screen.getByText("make dev")).toBeInTheDocument();
+  });
+
+  it("does not select a repository whose analysis never finished", async () => {
+    localStorage.removeItem("codeatlas-repository");
+    stubRoutes({
+      "/health": { body: healthyBody },
+      "/repositories": { body: [{ id: 9, path: "/work/empty", analyzed_at: null }] },
+    });
+    renderWithQuery(<App />);
+    expect(await screen.findByText("No repository open")).toBeInTheDocument();
   });
 
   it("falls back to the overview for unknown routes", () => {

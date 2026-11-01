@@ -3,6 +3,7 @@
 //! The database holds derived analysis data and lives outside analyzed
 //! repositories. It can always be rebuilt, so it is a cache, not a source of truth.
 
+mod backtests;
 mod history;
 mod migrations;
 mod snapshots;
@@ -150,6 +151,22 @@ mod tests {
              VALUES (?1, 'oid', ?2, 0, 0, 'hash', 500)",
             params![repository_id, status],
         )
+    }
+
+    #[test]
+    fn opening_does_not_wait_for_a_writer() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("atlas.sqlite");
+        let writer = Database::open(&path).unwrap();
+        writer
+            .connection()
+            .execute_batch("BEGIN IMMEDIATE")
+            .unwrap();
+
+        let started = std::time::Instant::now();
+        let reader = Database::open(&path).unwrap();
+        assert_eq!(reader.schema_version().unwrap(), latest_version());
+        assert!(started.elapsed() < std::time::Duration::from_secs(1));
     }
 
     #[test]

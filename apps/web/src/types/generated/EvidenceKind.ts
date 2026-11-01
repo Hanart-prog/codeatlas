@@ -3,4 +3,4 @@
 /**
  * Which kinds of evidence support a recommendation.
  */
-export type EvidenceKind = "static_dependency" | "historical_co_change";
+export type EvidenceKind = "static_dependency" | "historical_co_change" | "activity_only";

@@ -10,12 +10,16 @@
 //!   CORS hides the response but the request still runs, and `Host` looks fine.
 //!   The browser marks it with the page's `Origin`, so the `Origin` check rejects it.
 //!
-//! Requests without `Origin`, such as curl or same-origin GETs, are allowed. They
-//! cannot have been forged by a web page into another site's context.
+//! - Cross-site GETs: an `<img>` on any page sends no `Origin`, yet can still make
+//!   this server build snapshots. Browsers mark it with `Sec-Fetch-Site`.
+//!
+//! Requests with neither header, such as curl, are allowed. Following a link to the
+//! dashboard from another site is a top-level navigation, which runs no script of
+//! that site, so it is allowed too.
 
 use atlas_model::ErrorCode;
 use axum::extract::Request;
-use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
+use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header};
 use axum::middleware::Next;
 use axum::response::Response;
 
@@ -41,9 +45,10 @@ fn check_headers(headers: &HeaderMap) -> Result<(), ApiError> {
             "this server only answers requests addressed to localhost",
         ));
     }
-    if let Some(origin) = text(header::ORIGIN)
-        && !is_trusted_origin(origin, host)
-    {
+    let cross_site = text(HeaderName::from_static("sec-fetch-site")) == Some("cross-site")
+        && text(HeaderName::from_static("sec-fetch-mode")) != Some("navigate");
+    let untrusted = text(header::ORIGIN).is_some_and(|origin| !is_trusted_origin(origin, host));
+    if cross_site || untrusted {
         return Err(ApiError::new(
             StatusCode::FORBIDDEN,
             ErrorCode::ForbiddenOrigin,
@@ -173,5 +178,32 @@ mod tests {
         let (app, _) = app();
         let response = send(app, request("/api/v1/health").body(Body::empty()).unwrap()).await;
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn a_cross_site_get_with_no_origin_is_rejected() {
+        let cross_site = Request::builder()
+            .method(Method::GET)
+            .uri("/api/v1/health")
+            .header(header::HOST, "127.0.0.1:4317")
+            .header("sec-fetch-site", "cross-site")
+            .header("sec-fetch-mode", "no-cors")
+            .body(Body::empty())
+            .unwrap();
+        let response = send(app().0, cross_site).await;
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+        let navigation = Request::builder()
+            .method(Method::GET)
+            .uri("/api/v1/health")
+            .header(header::HOST, "127.0.0.1:4317")
+            .header("sec-fetch-site", "cross-site")
+            .header("sec-fetch-mode", "navigate")
+            .body(Body::empty())
+            .unwrap();
+        assert_ne!(
+            send(app().0, navigation).await.status(),
+            StatusCode::FORBIDDEN
+        );
     }
 }

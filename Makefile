@@ -4,6 +4,7 @@ export PATH := $(HOME)/.cargo/bin:$(PATH)
 CARGO := $(shell command -v cargo 2>/dev/null || echo $(HOME)/.cargo/bin/cargo)
 
 WEB := apps/web
+WARMUP := 100
 PNPM_VERSION := 10.34.9
 PNPM := $(shell command -v pnpm 2>/dev/null || echo npx --yes pnpm@$(PNPM_VERSION))
 
@@ -28,13 +29,14 @@ build: ## Release binary and production frontend
 	cd $(WEB) && $(PNPM) build
 
 e2e: ## Browser tests against a generated fixture; set PW_CHANNEL=chrome to use local Chrome
-	$(CARGO) build -p atlas-cli -p atlas-fixtures
+	$(CARGO) build --locked -p atlas-cli -p atlas-fixtures
 	cd $(WEB) && $(PNPM) build && $(PNPM) e2e
 
-verify: ## Recheck a real repository independently: make verify REPO=/path/to/clone
+verify: ## Recheck a real repository independently: make verify REPO=/path/to/clone [WARMUP=100]
 	@test -n "$(REPO)" || { echo "usage: make verify REPO=/path/to/clone"; exit 1; }
 	$(CARGO) build --locked -p atlas-cli
 	python3 scripts/verify_compare.py target/debug/codeatlas "$(REPO)"
+	python3 scripts/verify_backtest.py target/debug/codeatlas "$(REPO)" $(WARMUP)
 	@data=$$(mktemp -d); graph=$$data/graph.json; \
 	target/debug/codeatlas analyze "$(REPO)" --data-dir "$$data" >/dev/null && \
 	target/debug/codeatlas graph "$(REPO)" --limit 50000 --format json --data-dir "$$data" > "$$graph" && \

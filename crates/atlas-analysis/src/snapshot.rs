@@ -70,7 +70,7 @@ fn build(
         }
     }
     if sources.len() > config.limits.max_graph_nodes as usize {
-        return Err(AtlasError::InvalidInput(format!(
+        return Err(AtlasError::TooLarge(format!(
             "{} source files exceed limits.max_graph_nodes ({})",
             sources.len(),
             config.limits.max_graph_nodes
@@ -139,7 +139,7 @@ fn build(
     }
 
     if edges.len() > config.limits.max_graph_edges as usize {
-        return Err(AtlasError::InvalidInput(format!(
+        return Err(AtlasError::TooLarge(format!(
             "{} import edges exceed limits.max_graph_edges ({})",
             edges.len(),
             config.limits.max_graph_edges

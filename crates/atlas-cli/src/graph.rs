@@ -2,12 +2,12 @@
 
 use std::path::Path;
 
-use atlas_analysis::{GraphQuery, find_repository, graph};
+use atlas_analysis::{GraphQuery, find_repository, graph, overview};
 use atlas_model::{AtlasConfig, AtlasError, GraphResponse};
 use atlas_storage::Database;
 
 use crate::cli::{GraphArgs, OutputFormat};
-use crate::history::safe;
+use crate::history::{safe, stale_warning};
 
 pub fn run(args: GraphArgs, config: &AtlasConfig, data_dir: &Path) -> Result<(), AtlasError> {
     let database = Database::open(&crate::database_path(data_dir)?)?;
@@ -19,6 +19,19 @@ pub fn run(args: GraphArgs, config: &AtlasConfig, data_dir: &Path) -> Result<(),
         include_cochange: false,
     };
     let response = graph(&database, &repository, &query, config)?;
+    if query.git_ref.is_none()
+        && let Some(warning) = stale_warning(&overview(&database, repository.id)?)
+    {
+        eprintln!("warning: {warning}");
+    }
+    if let Some(directory) = &query.directory
+        && response.matching_node_count == 0
+    {
+        eprintln!(
+            "warning: no source files under {:?}. Directories are relative to the repository root.",
+            safe(directory)
+        );
+    }
     match args.format {
         OutputFormat::Json => {
             let json = serde_json::to_string_pretty(&response)
@@ -40,8 +53,9 @@ fn print_text(response: &GraphResponse) {
         response.total_node_count
     );
     println!(
-        "  imports  {} resolved, {} external, {} unresolved",
+        "  imports  {} statements resolved to {} edges, {} external, {} unresolved",
         coverage.resolved_import_count,
+        response.total_edge_count,
         coverage.external_import_count,
         coverage.unresolved_import_count
     );

@@ -47,14 +47,14 @@ test("rank impact as of a historical commit", async ({ page }) => {
   await page.getByRole("button", { name: "Rank files" }).click();
 
   const first = page.getByRole("listitem").filter({ hasText: "src/billing/invoice.ts" });
-  await expect(first.getByText("0.900")).toBeVisible();
+  await expect(first.getByText("0.727")).toBeVisible();
   await expect(first.getByText("3 of 4 commits")).toBeVisible();
   await expect(page.getByText("not a probability of failure")).toBeVisible();
 
   const earlier = page.getByRole("option", { name: /Prorate expired sessions/ });
   await page.getByLabel("As of commit").selectOption((await earlier.getAttribute("value")) as string);
   await page.getByRole("button", { name: "Rank files" }).click();
-  await expect(page.getByRole("listitem").filter({ hasText: "src/api/routes.ts" }).getByText("#1")).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: "src/billing/invoice.ts" }).getByText("0.738")).toBeVisible();
 
   expect(errors).toEqual([]);
 });
@@ -93,6 +93,34 @@ test("compare two commits and see a cycle appear", async ({ page }) => {
 
   await expect(page.getByText("13 of 13 commits")).toBeVisible();
   await expect(page.getByRole("img", { name: /^Import cycles by commit/ })).toBeVisible();
+
+  expect(errors).toEqual([]);
+});
+
+test("backtest against baselines without look-ahead", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(String(error)));
+
+  await page.goto("/");
+  await page.getByLabel(/Absolute path/).fill(fixture());
+  await page.getByRole("button", { name: "Analyze" }).click();
+  await expect(page.getByRole("cell", { name: "src/billing/invoice.ts" })).toBeVisible({ timeout: 15_000 });
+
+  await page.getByRole("link", { name: /Backtesting/ }).click();
+  await expect(page.getByText(/does not measure bugs/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Run backtest" }).click();
+  await expect(page.getByText(/No commit could be evaluated/)).toBeVisible();
+
+  await page.getByLabel("Warm-up commits").fill("4");
+  await page.getByRole("button", { name: "Run backtest" }).click();
+  await expect(page.getByRole("heading", { name: "Against the baselines" }).or(page.getByText("Against the baselines"))).toBeVisible();
+  await expect(page.getByRole("rowheader", { name: "Most changed files" })).toBeVisible();
+  await expect(page.getByRole("img", { name: /Hit rate at 5 files for each ranker/ })).toBeVisible();
+
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export JSON" }).click();
+  expect((await download).suggestedFilename()).toMatch(/^codeatlas-backtest-.*\.json$/);
 
   expect(errors).toEqual([]);
 });

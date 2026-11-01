@@ -1,7 +1,9 @@
 //! The repository overview, shared by the CLI and the API.
 
 use std::collections::HashSet;
+use std::path::Path;
 
+use atlas_git::GitRepository;
 use atlas_model::history::ChangeStatus;
 use atlas_model::{
     AtlasError, FileChurn, FileSummary, HistorySummary, OverviewResponse, RepositoryId, RunSummary,
@@ -61,7 +63,12 @@ pub fn overview(
     let mut top_churn = run_churn(&changes, identities);
     top_churn.truncate(TOP_CHURN_LIMIT);
 
+    let head_oid = GitRepository::open(Path::new(&repository.path))
+        .and_then(|git| git.resolve("HEAD"))
+        .ok();
+
     Ok(OverviewResponse {
+        head_oid,
         history: HistorySummary {
             commit_count,
             merge_commit_count,

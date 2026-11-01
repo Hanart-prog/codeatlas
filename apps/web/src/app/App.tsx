@@ -7,7 +7,7 @@ import { OverviewPage } from "@/features/overview/OverviewPage";
 import { PlannedPage } from "@/features/planned/PlannedPage";
 import { cn } from "@/lib/utils";
 
-import { ApiStatus } from "./ApiStatus";
+import { ApiOfflineBanner, ApiStatus } from "./ApiStatus";
 import { ROUTES } from "./routes";
 import { useTheme } from "./theme";
 import { useHashRoute } from "./useHashRoute";
@@ -23,6 +23,10 @@ const ImpactPage = lazy(() =>
 
 const TimeMachinePage = lazy(() =>
   import("@/features/time-machine/TimeMachinePage").then((module) => ({ default: module.TimeMachinePage })),
+);
+
+const BacktestPage = lazy(() =>
+  import("@/features/backtest/BacktestPage").then((module) => ({ default: module.BacktestPage })),
 );
 
 export function App() {
@@ -95,6 +99,7 @@ export function App() {
             </Button>
           </div>
         </header>
+        <ApiOfflineBanner />
         <main id="main" tabIndex={-1} className="flex-1 overflow-y-auto p-6 outline-none">
           {route.plannedPhase !== undefined ? (
             <PlannedPage route={route} />
@@ -109,6 +114,10 @@ export function App() {
           ) : route.id === "time-machine" ? (
             <Suspense fallback={<Skeleton aria-label="Loading time machine" className="h-[520px] w-full" />}>
               <TimeMachinePage repository={selection.repository} theme={theme} />
+            </Suspense>
+          ) : route.id === "backtesting" ? (
+            <Suspense fallback={<Skeleton aria-label="Loading backtesting" className="h-[520px] w-full" />}>
+              <BacktestPage repository={selection.repository} theme={theme} />
             </Suspense>
           ) : (
             <OverviewPage selection={selection} />

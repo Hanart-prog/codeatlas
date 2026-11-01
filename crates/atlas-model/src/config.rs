@@ -70,8 +70,6 @@ pub struct Limits {
     pub max_graph_nodes: u32,
     /// Largest number of graph edges to build.
     pub max_graph_edges: u32,
-    /// Longest a query may run, in milliseconds.
-    pub query_timeout_ms: u64,
 }
 
 impl Default for Limits {
@@ -81,7 +79,6 @@ impl Default for Limits {
             max_total_indexed_bytes: 2 * 1024 * 1024 * 1024,
             max_graph_nodes: 50_000,
             max_graph_edges: 500_000,
-            query_timeout_ms: 30_000,
         }
     }
 }
@@ -138,7 +135,6 @@ impl AtlasConfig {
                 "limits.max_graph_edges",
                 u64::from(self.limits.max_graph_edges),
             ),
-            ("limits.query_timeout_ms", self.limits.query_timeout_ms),
             (
                 "analysis.bulk_commit_file_threshold",
                 u64::from(self.analysis.bulk_commit_file_threshold),

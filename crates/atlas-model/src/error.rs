@@ -35,6 +35,9 @@ pub enum AtlasError {
     /// Input failed validation.
     #[error("{0}")]
     InvalidInput(String),
+    /// The repository is over a safety limit.
+    #[error("{0}")]
+    TooLarge(String),
     /// The configuration file or a setting is invalid.
     #[error("invalid configuration: {0}")]
     Config(String),
@@ -70,7 +73,7 @@ impl AtlasError {
     /// The stable code for this error.
     pub fn code(&self) -> ErrorCode {
         match self {
-            Self::InvalidInput(_) | Self::Config(_) => ErrorCode::InvalidInput,
+            Self::InvalidInput(_) | Self::TooLarge(_) | Self::Config(_) => ErrorCode::InvalidInput,
             Self::NotImplemented { .. } => ErrorCode::NotImplemented,
             Self::NotFound(_) => ErrorCode::NotFound,
             Self::Git(_) => ErrorCode::GitError,

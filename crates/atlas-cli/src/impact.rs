@@ -13,7 +13,11 @@ pub fn run(args: ImpactArgs, config: &AtlasConfig, data_dir: &Path) -> Result<()
     let database = Database::open(&crate::database_path(data_dir)?)?;
     let repository = find_repository(&database, &args.repo)?;
     let request = ImpactRequest {
-        selected_paths: args.files,
+        selected_paths: args
+            .files
+            .iter()
+            .map(|file| from_repository_root(&repository.path, file))
+            .collect(),
         cutoff: Some(args.git_ref),
         max_depth: Some(args.depth),
         top_k: Some(args.top),
@@ -31,6 +35,19 @@ pub fn run(args: ImpactArgs, config: &AtlasConfig, data_dir: &Path) -> Result<()
         OutputFormat::Text => print_text(&response),
     }
     Ok(())
+}
+
+/// Accepts what a shell or editor gives: `./src/a.ts`, or a full path inside the
+/// repository. Anything else is left for validation to report.
+fn from_repository_root(root: &str, file: &str) -> String {
+    let relative = file.strip_prefix("./").unwrap_or(file);
+    let path = Path::new(relative);
+    let resolved = path.canonicalize().ok();
+    let inside = path
+        .strip_prefix(root)
+        .ok()
+        .or_else(|| resolved.as_deref()?.strip_prefix(root).ok());
+    inside.and_then(Path::to_str).unwrap_or(relative).to_owned()
 }
 
 fn print_text(response: &ImpactResponse) {

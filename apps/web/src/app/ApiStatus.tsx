@@ -19,3 +19,15 @@ export function ApiStatus() {
     </span>
   );
 }
+
+/** Every page depends on the API, so losing it should not look like empty results. */
+export function ApiOfflineBanner() {
+  const { isError } = useHealth();
+  if (!isError) return null;
+  return (
+    <p role="alert" className="border-b bg-destructive/10 px-6 py-2 text-sm">
+      The local API is not running, so results cannot load. Start it with <code className="font-mono">make dev</code> or{" "}
+      <code className="font-mono">codeatlas serve</code>.
+    </p>
+  );
+}

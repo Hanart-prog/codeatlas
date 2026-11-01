@@ -22,6 +22,9 @@ export function Recommendation({ item }: { item: ImpactRecommendation }) {
       <div className="flex items-baseline gap-3">
         <span className="font-mono text-xs text-muted-foreground">#{item.rank}</span>
         <span className="min-w-0 flex-1 break-all font-mono text-sm">{item.path}</span>
+        {item.evidence.includes("activity_only") && (
+          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">Often changes</span>
+        )}
         <span className="font-mono text-sm" title="Ranking score, not a probability">
           {item.score.toFixed(3)}
         </span>
@@ -29,7 +32,7 @@ export function Recommendation({ item }: { item: ImpactRecommendation }) {
 
       <dl className="mt-3 space-y-0.5">
         <ScoreRow label="Import evidence" value={item.static_score} weight="1 / hops" />
-        <ScoreRow label="History evidence" value={item.historical_score} weight="P(this | selected)" />
+        <ScoreRow label="History evidence" value={item.historical_score} weight="smoothed share of commits" />
       </dl>
 
       {imports && (

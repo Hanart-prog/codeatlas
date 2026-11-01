@@ -1,4 +1,4 @@
-//! Background analysis jobs.
+//! Background analysis and backtest jobs.
 //!
 //! Jobs live in memory and disappear on restart; their results are in SQLite.
 //! Each runs on a blocking thread with its own database connection, so reads keep
@@ -10,8 +10,11 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use atlas_analysis::{AnalyzeOptions, analyze};
-use atlas_model::{AtlasError, ErrorCode, JobResponse, JobStatus, RepositoryId};
+use atlas_analysis::{AnalyzeOptions, analyze, backtest};
+use atlas_model::{
+    AtlasConfig, AtlasError, BacktestRequest, ErrorCode, JobProgress, JobResponse, JobStatus,
+    RepositoryEntry, RepositoryId,
+};
 use atlas_storage::Database;
 use axum::Json;
 use axum::extract::{Path, State};
@@ -32,6 +35,7 @@ impl JobRegistry {
             repository_id,
             status: JobStatus::Queued,
             error: None,
+            progress: None,
         };
         if let Ok(mut jobs) = self.jobs.lock() {
             jobs.insert(job.id, job.clone());
@@ -48,6 +52,14 @@ impl JobRegistry {
         }
     }
 
+    fn progress(&self, id: u32, done: u32, total: u32) {
+        if let Ok(mut jobs) = self.jobs.lock()
+            && let Some(job) = jobs.get_mut(&id)
+        {
+            job.progress = Some(JobProgress { done, total });
+        }
+    }
+
     fn get(&self, id: u32) -> Option<JobResponse> {
         self.jobs.lock().ok()?.get(&id).cloned()
     }
@@ -59,6 +71,31 @@ pub fn start(
     repository_id: RepositoryId,
     path: PathBuf,
     options: AnalyzeOptions,
+) -> JobResponse {
+    run(state, repository_id, move |database, config, _| {
+        analyze(database, &path, &options, config).map(|_| ())
+    })
+}
+
+/// Queues a backtest and returns immediately.
+pub fn start_backtest(
+    state: &AppState,
+    repository: RepositoryEntry,
+    request: BacktestRequest,
+) -> JobResponse {
+    run(state, repository.id, move |database, config, progress| {
+        backtest(database, &repository, &request, config, progress).map(|_| ())
+    })
+}
+
+type Progress<'a> = &'a mut dyn FnMut(u32, u32);
+
+fn run(
+    state: &AppState,
+    repository_id: RepositoryId,
+    work: impl FnOnce(&mut Database, &AtlasConfig, Progress<'_>) -> Result<(), AtlasError>
+    + Send
+    + 'static,
 ) -> JobResponse {
     let job = state.jobs.create(repository_id);
     let id = job.id;
@@ -73,23 +110,25 @@ pub fn start(
 
         let database_path = state.database_path.clone();
         let config = Arc::clone(&state.config);
+        let registry = Arc::clone(&state.jobs);
         let result = tokio::task::spawn_blocking(move || {
             let mut database = Database::open(&database_path)?;
-            analyze(&mut database, &path, &options, &config)?;
-            Ok::<_, AtlasError>(())
+            work(&mut database, &config, &mut |done, total| {
+                registry.progress(id, done, total);
+            })
         })
         .await;
 
         match result {
             Ok(Ok(())) => state.jobs.update(id, JobStatus::Completed, None),
             Ok(Err(error)) => {
-                tracing::warn!(%error, "analysis failed");
+                tracing::warn!(%error, "job failed");
                 state
                     .jobs
                     .update(id, JobStatus::Failed, Some(error.to_string()));
             }
             Err(_) => {
-                let message = "analysis stopped unexpectedly".to_owned();
+                let message = "job stopped unexpectedly".to_owned();
                 state.jobs.update(id, JobStatus::Failed, Some(message));
             }
         }

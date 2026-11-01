@@ -177,6 +177,17 @@ pub struct JobResponse {
     pub status: JobStatus,
     /// Failure description, when `status` is `failed`.
     pub error: Option<String>,
+    /// How far it has got, for jobs that can tell.
+    pub progress: Option<JobProgress>,
+}
+
+/// Steps finished of a job's total.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct JobProgress {
+    /// Steps finished.
+    pub done: u32,
+    /// All steps.
+    pub total: u32,
 }
 
 /// One commit, as shown in summaries.
@@ -310,6 +321,9 @@ pub struct OverviewResponse {
     pub exclusions: Vec<ExclusionCount>,
     /// Files with the most changes, most active first, ties by path.
     pub top_churn: Vec<FileChurn>,
+    /// The repository's `HEAD` now, if it can still be read. When it differs from
+    /// the analyzed commit, these results do not cover the latest work.
+    pub head_oid: Option<Oid>,
 }
 
 #[cfg(test)]

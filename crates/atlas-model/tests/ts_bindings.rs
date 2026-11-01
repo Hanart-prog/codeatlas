@@ -17,6 +17,11 @@ use atlas_model::{
     TimelineResponse,
 };
 use atlas_model::{
+    BacktestCase, BacktestCounts, BacktestEntry, BacktestRequest, BacktestResult, CaseRanking,
+    Estimate, JobProgress, LatestBacktest, MetricsAtK, Ranker, RankerResult, TrendBucket,
+    TrendRate,
+};
+use atlas_model::{
     CoChangeEdge, CoChangeStats, EvidenceKind, HistoricalEvidence, ImpactRecommendation,
     ImpactRequest, ImpactResponse, SelectedFile, SelectedFileStatus, StaticEvidence,
 };
@@ -43,6 +48,20 @@ fn generated_typescript_is_up_to_date() {
 
     let bindings = [
         binding::<AnalysisRunId>(),
+        binding::<BacktestCase>(),
+        binding::<BacktestCounts>(),
+        binding::<BacktestEntry>(),
+        binding::<BacktestRequest>(),
+        binding::<BacktestResult>(),
+        binding::<CaseRanking>(),
+        binding::<Estimate>(),
+        binding::<JobProgress>(),
+        binding::<LatestBacktest>(),
+        binding::<MetricsAtK>(),
+        binding::<Ranker>(),
+        binding::<RankerResult>(),
+        binding::<TrendBucket>(),
+        binding::<TrendRate>(),
         binding::<ArchitectureSummary>(),
         binding::<CommitRelation>(),
         binding::<CompareCounts>(),

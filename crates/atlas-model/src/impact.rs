@@ -27,10 +27,10 @@ pub struct ImpactRequest {
     /// First-parent commits of history, ending at the cutoff (default 200).
     #[ts(optional)]
     pub history_window: Option<u32>,
-    /// Weight of static evidence (default 0.6).
+    /// Weight of static evidence (default 0.05).
     #[ts(optional)]
     pub static_weight: Option<f64>,
-    /// Weight of historical evidence (default 0.4).
+    /// Weight of historical evidence (default 1).
     #[ts(optional)]
     pub historical_weight: Option<f64>,
 }
@@ -68,6 +68,8 @@ pub enum EvidenceKind {
     StaticDependency,
     /// The file changed together with a selected file in past commits.
     HistoricalCoChange,
+    /// Nothing links the file to the change; it is a frequently changed file.
+    ActivityOnly,
 }
 
 /// Import evidence for a recommendation.

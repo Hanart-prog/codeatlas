@@ -97,8 +97,7 @@ fn version_matches_the_package() {
 
 #[test]
 fn unbuilt_commands_fail_and_name_their_phase() {
-    let cases: [(&[&str], &str); 3] = [
-        (&["backtest", "/nonexistent"], "Phase 5"),
+    let cases: [(&[&str], &str); 2] = [
         (&["report", "/nonexistent"], "Phase 6"),
         (&["demo"], "Phase 6"),
     ];
@@ -432,6 +431,120 @@ fn compare_diffs_two_commits() {
 }
 
 #[test]
+fn a_repository_with_no_typescript_says_so() {
+    let (repo, data) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let mut fixture = atlas_fixtures::FixtureRepo::init(repo.path()).unwrap();
+    fixture
+        .change()
+        .unwrap()
+        .write("main.py", "print(1)\n")
+        .commit("Python")
+        .unwrap();
+
+    let output = codeatlas()
+        .arg("analyze")
+        .arg(repo.path())
+        .arg("--data-dir")
+        .arg(data.path())
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("no TS or TSX files"), "{stdout}");
+    assert!(!stdout.contains("Next:"), "{stdout}");
+
+    let output = backtest(repo.path(), data.path(), &[]);
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("nothing to evaluate"), "{stdout}");
+}
+
+#[test]
+fn analyze_says_what_to_do_next_and_warns_when_results_go_stale() {
+    let (repo, data) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let mut fixture = atlas_fixtures::FixtureRepo::init(repo.path()).unwrap();
+    fixture
+        .change()
+        .unwrap()
+        .write("a.ts", "export const a = 1;\n")
+        .commit("One")
+        .unwrap();
+    let args = |command: &str| {
+        let mut built = codeatlas();
+        built
+            .arg(command)
+            .arg(repo.path())
+            .arg("--data-dir")
+            .arg(data.path());
+        built.output().unwrap()
+    };
+    let first = String::from_utf8(args("analyze").stdout).unwrap();
+    assert!(first.contains("Next: codeatlas serve"), "{first}");
+
+    fixture
+        .change()
+        .unwrap()
+        .append("a.ts", "export const b = 2;\n")
+        .commit("Two")
+        .unwrap();
+    let later = String::from_utf8(args("overview").stdout).unwrap();
+    assert!(later.contains("Run `codeatlas analyze`"), "{later}");
+
+    let stderr = String::from_utf8(args("graph").stderr).unwrap();
+    assert!(stderr.contains("Run `codeatlas analyze`"), "{stderr}");
+}
+
+#[test]
+fn impact_accepts_paths_as_shells_give_them() {
+    let (repo, data) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    atlas_fixtures::generate_main_fixture(repo.path()).unwrap();
+    assert!(analyze_json(repo.path(), data.path()).status.success());
+
+    let dotted = impact(
+        repo.path(),
+        data.path(),
+        &["--file", "./src/auth/session.ts"],
+    );
+    assert!(dotted.status.success(), "{dotted:?}");
+
+    let full = repo
+        .path()
+        .canonicalize()
+        .unwrap()
+        .join("src/auth/session.ts");
+    let full = impact(
+        repo.path(),
+        data.path(),
+        &["--file", full.to_str().unwrap()],
+    );
+    assert!(full.status.success(), "{full:?}");
+
+    let missing = impact(repo.path(), data.path(), &["--file", "src/nope.ts"]);
+    let stderr = String::from_utf8(missing.stderr).unwrap();
+    assert!(
+        stderr.contains("relative to the repository root"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn a_bad_path_says_what_is_wrong() {
+    let data = tempfile::tempdir().unwrap();
+    let file = tempfile::NamedTempFile::new().unwrap();
+    let error = |path: &Path| {
+        let output = codeatlas()
+            .arg("analyze")
+            .arg(path)
+            .arg("--data-dir")
+            .arg(data.path())
+            .output()
+            .unwrap();
+        String::from_utf8(output.stderr).unwrap()
+    };
+    assert!(error(Path::new("/no/such/place")).contains("no such folder"));
+    assert!(error(file.path()).contains("it is a file"));
+    assert!(error(data.path()).contains("contains .git"));
+}
+
+#[test]
 fn compare_rejects_an_unknown_commit() {
     let (repo, data) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
     atlas_fixtures::generate_main_fixture(repo.path()).unwrap();
@@ -441,4 +554,51 @@ fn compare_rejects_an_unknown_commit() {
     let output = compare(repo.path(), data.path(), &args);
     assert_eq!(output.status.code(), Some(1));
     assert!(output.stdout.is_empty());
+}
+
+fn backtest(repo: &Path, data: &Path, args: &[&str]) -> Output {
+    codeatlas()
+        .arg("backtest")
+        .arg(repo)
+        .args(args)
+        .arg("--data-dir")
+        .arg(data)
+        .output()
+        .unwrap()
+}
+
+#[test]
+fn backtest_reports_rankers_and_says_what_it_measures() {
+    let (repo, data) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    atlas_fixtures::generate_main_fixture(repo.path()).unwrap();
+    assert!(analyze_json(repo.path(), data.path()).status.success());
+
+    let args = ["--warmup", "4", "--format", "json"];
+    let first = backtest(repo.path(), data.path(), &args);
+    assert!(first.status.success(), "{first:?}");
+    let parsed: atlas_model::BacktestResult = serde_json::from_slice(&first.stdout).unwrap();
+    assert_eq!(parsed.warmup, 4);
+    assert_eq!(parsed.rankers.len(), 5);
+    assert_eq!(
+        first.stdout,
+        backtest(repo.path(), data.path(), &args).stdout,
+        "backtests must be reproducible"
+    );
+
+    let text = backtest(repo.path(), data.path(), &["--warmup", "4"]);
+    let stdout = String::from_utf8(text.stdout).unwrap();
+    assert!(stdout.contains("co-edit prediction"), "{stdout}");
+    assert!(stdout.contains("Change Impact"), "{stdout}");
+}
+
+#[test]
+fn backtest_explains_too_little_history() {
+    let (repo, data) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    atlas_fixtures::generate_main_fixture(repo.path()).unwrap();
+    assert!(analyze_json(repo.path(), data.path()).status.success());
+
+    let output = backtest(repo.path(), data.path(), &[]);
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("No commit could be evaluated"), "{stdout}");
 }

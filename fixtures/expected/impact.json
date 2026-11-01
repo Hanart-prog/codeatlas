@@ -1,61 +1,355 @@
 {
-  "_comment": "Worked out by hand from the commit list in fixtures/generator/src/lib.rs, with default settings: 0.6 static, 0.4 historical, depth 3, minimum 3 shared commits. Do not regenerate from engine output.",
+  "_comment": "Worked out by hand from the commit list in fixtures/generator/src/lib.rs, with default settings: score = (shared + candidate commits / eligible commits) / (selected commits + 1) + 0.05 / distance, depth 3. Do not regenerate from engine output.",
   "cases": [
     {
-      "name": "session at the tip: invoice has both kinds of evidence",
+      "name": "session at the tip: shared history leads, one shared commit still counts, and idle files fill the list",
       "cutoff_subject": "Add vendored output and odd paths",
-      "selected": ["src/auth/session.ts"],
+      "selected": [
+        "src/auth/session.ts"
+      ],
       "expected": [
-        { "path": "src/billing/invoice.ts", "score": 0.9, "static_score": 1.0, "historical_score": 0.75, "distance": 1, "shared": 3, "selected_count": 4, "candidate_count": 5 },
-        { "path": "src/api/routes.ts", "score": 0.6, "static_score": 1.0, "historical_score": 0.0, "distance": 1 }
+        {
+          "path": "src/billing/invoice.ts",
+          "score": 0.7269230769230769,
+          "static_score": 1.0,
+          "historical_score": 0.676923076923077,
+          "distance": 1,
+          "shared": 3,
+          "selected_count": 4,
+          "candidate_count": 5
+        },
+        {
+          "path": "src/api/routes.ts",
+          "score": 0.29615384615384616,
+          "static_score": 1.0,
+          "historical_score": 0.24615384615384617,
+          "distance": 1,
+          "shared": 1,
+          "selected_count": 4,
+          "candidate_count": 3
+        },
+        {
+          "path": "src/auth/token.ts",
+          "score": 0.24615384615384617,
+          "static_score": 0.0,
+          "historical_score": 0.24615384615384617,
+          "shared": 1,
+          "selected_count": 4,
+          "candidate_count": 3
+        },
+        {
+          "path": "src/users/account.ts",
+          "score": 0.24615384615384617,
+          "static_score": 0.0,
+          "historical_score": 0.24615384615384617,
+          "shared": 1,
+          "selected_count": 4,
+          "candidate_count": 3
+        },
+        {
+          "path": "src/billing/tax.ts",
+          "score": 0.015384615384615385,
+          "static_score": 0.0,
+          "historical_score": 0.015384615384615385
+        },
+        {
+          "path": "src/módulo uno/índice.ts",
+          "score": 0.015384615384615385,
+          "static_score": 0.0,
+          "historical_score": 0.015384615384615385
+        },
+        {
+          "path": "tests/auth.test.ts",
+          "score": 0.015384615384615385,
+          "static_score": 0.0,
+          "historical_score": 0.015384615384615385
+        }
       ]
     },
     {
-      "name": "invoice at the tip: the direction of the probability differs",
+      "name": "invoice at the tip: the direction of the probability differs, and history outranks a direct import",
       "cutoff_subject": "Add vendored output and odd paths",
-      "selected": ["src/billing/invoice.ts"],
+      "selected": [
+        "src/billing/invoice.ts"
+      ],
       "expected": [
-        { "path": "src/api/routes.ts", "score": 0.6, "static_score": 1.0, "historical_score": 0.0, "distance": 1 },
-        { "path": "src/auth/session.ts", "score": 0.24, "static_score": 0.0, "historical_score": 0.6, "shared": 3, "selected_count": 5, "candidate_count": 4 }
+        {
+          "path": "src/auth/session.ts",
+          "score": 0.5512820512820513,
+          "static_score": 0.0,
+          "historical_score": 0.5512820512820513,
+          "shared": 3,
+          "selected_count": 5,
+          "candidate_count": 4
+        },
+        {
+          "path": "src/billing/tax.ts",
+          "score": 0.1794871794871795,
+          "static_score": 0.0,
+          "historical_score": 0.1794871794871795,
+          "shared": 1,
+          "selected_count": 5,
+          "candidate_count": 1
+        },
+        {
+          "path": "src/api/routes.ts",
+          "score": 0.08846153846153847,
+          "static_score": 1.0,
+          "historical_score": 0.038461538461538464,
+          "distance": 1
+        },
+        {
+          "path": "src/auth/token.ts",
+          "score": 0.038461538461538464,
+          "static_score": 0.0,
+          "historical_score": 0.038461538461538464
+        },
+        {
+          "path": "src/users/account.ts",
+          "score": 0.038461538461538464,
+          "static_score": 0.0,
+          "historical_score": 0.038461538461538464
+        },
+        {
+          "path": "src/módulo uno/índice.ts",
+          "score": 0.01282051282051282,
+          "static_score": 0.0,
+          "historical_score": 0.01282051282051282
+        },
+        {
+          "path": "tests/auth.test.ts",
+          "score": 0.01282051282051282,
+          "static_score": 0.0,
+          "historical_score": 0.01282051282051282
+        }
       ]
     },
     {
-      "name": "token at the tip: transitive dependents, tied scores ordered by path",
+      "name": "token at the tip: transitive dependents, with ties ordered by path",
       "cutoff_subject": "Add vendored output and odd paths",
-      "selected": ["src/auth/token.ts"],
+      "selected": [
+        "src/auth/token.ts"
+      ],
       "expected": [
-        { "path": "src/auth/session.ts", "score": 0.6, "static_score": 1.0, "historical_score": 0.0, "distance": 1 },
-        { "path": "src/api/routes.ts", "score": 0.3, "static_score": 0.5, "historical_score": 0.0, "distance": 2 },
-        { "path": "src/billing/invoice.ts", "score": 0.3, "static_score": 0.5, "historical_score": 0.0, "distance": 2 }
+        {
+          "path": "src/api/routes.ts",
+          "score": 0.5826923076923077,
+          "static_score": 0.5,
+          "historical_score": 0.5576923076923077,
+          "distance": 2,
+          "shared": 2,
+          "selected_count": 3,
+          "candidate_count": 3
+        },
+        {
+          "path": "src/auth/session.ts",
+          "score": 0.3769230769230769,
+          "static_score": 1.0,
+          "historical_score": 0.3269230769230769,
+          "distance": 1,
+          "shared": 1,
+          "selected_count": 3,
+          "candidate_count": 4
+        },
+        {
+          "path": "src/users/account.ts",
+          "score": 0.3076923076923077,
+          "static_score": 0.0,
+          "historical_score": 0.3076923076923077,
+          "shared": 1,
+          "selected_count": 3,
+          "candidate_count": 3
+        },
+        {
+          "path": "src/billing/invoice.ts",
+          "score": 0.12115384615384615,
+          "static_score": 0.5,
+          "historical_score": 0.09615384615384616,
+          "distance": 2
+        },
+        {
+          "path": "src/billing/tax.ts",
+          "score": 0.019230769230769232,
+          "static_score": 0.0,
+          "historical_score": 0.019230769230769232
+        },
+        {
+          "path": "src/módulo uno/índice.ts",
+          "score": 0.019230769230769232,
+          "static_score": 0.0,
+          "historical_score": 0.019230769230769232
+        },
+        {
+          "path": "tests/auth.test.ts",
+          "score": 0.019230769230769232,
+          "static_score": 0.0,
+          "historical_score": 0.019230769230769232
+        }
       ]
     },
     {
-      "name": "session after the third shared commit: support is just met, the test still imports it",
+      "name": "session after the third shared commit: the test has no shared commit but imports it",
       "cutoff_subject": "Track device sessions on invoices",
-      "selected": ["src/auth/session.ts"],
+      "selected": [
+        "src/auth/session.ts"
+      ],
       "expected": [
-        { "path": "src/billing/invoice.ts", "score": 0.9, "static_score": 1.0, "historical_score": 0.75, "distance": 1, "shared": 3, "selected_count": 4, "candidate_count": 4 },
-        { "path": "src/api/routes.ts", "score": 0.6, "static_score": 1.0, "historical_score": 0.0, "distance": 1 },
-        { "path": "tests/auth.test.ts", "score": 0.6, "static_score": 1.0, "historical_score": 0.0, "distance": 1 }
+        {
+          "path": "src/billing/invoice.ts",
+          "score": 0.81,
+          "static_score": 1.0,
+          "historical_score": 0.76,
+          "distance": 1,
+          "shared": 3,
+          "selected_count": 4,
+          "candidate_count": 4
+        },
+        {
+          "path": "src/api/routes.ts",
+          "score": 0.29,
+          "static_score": 1.0,
+          "historical_score": 0.24,
+          "distance": 1,
+          "shared": 1,
+          "selected_count": 4,
+          "candidate_count": 1
+        },
+        {
+          "path": "src/auth/token.ts",
+          "score": 0.24,
+          "static_score": 0.0,
+          "historical_score": 0.24,
+          "shared": 1,
+          "selected_count": 4,
+          "candidate_count": 1
+        },
+        {
+          "path": "src/users/profile.ts",
+          "score": 0.24,
+          "static_score": 0.0,
+          "historical_score": 0.24,
+          "shared": 1,
+          "selected_count": 4,
+          "candidate_count": 1
+        },
+        {
+          "path": "tests/auth.test.ts",
+          "score": 0.09,
+          "static_score": 1.0,
+          "historical_score": 0.04,
+          "distance": 1
+        }
       ]
     },
     {
-      "name": "session one commit earlier: two shared commits are below support, so no history counts",
+      "name": "session one commit earlier: two shared commits now count",
       "cutoff_subject": "Prorate expired sessions",
-      "selected": ["src/auth/session.ts"],
+      "selected": [
+        "src/auth/session.ts"
+      ],
       "expected": [
-        { "path": "src/api/routes.ts", "score": 0.6, "static_score": 1.0, "historical_score": 0.0, "distance": 1 },
-        { "path": "src/billing/invoice.ts", "score": 0.6, "static_score": 1.0, "historical_score": 0.0, "distance": 1 },
-        { "path": "tests/auth.test.ts", "score": 0.6, "static_score": 1.0, "historical_score": 0.0, "distance": 1 }
+        {
+          "path": "src/billing/invoice.ts",
+          "score": 0.7375,
+          "static_score": 1.0,
+          "historical_score": 0.6875,
+          "distance": 1,
+          "shared": 2,
+          "selected_count": 3,
+          "candidate_count": 3
+        },
+        {
+          "path": "src/api/routes.ts",
+          "score": 0.3625,
+          "static_score": 1.0,
+          "historical_score": 0.3125,
+          "distance": 1,
+          "shared": 1,
+          "selected_count": 3,
+          "candidate_count": 1
+        },
+        {
+          "path": "src/auth/token.ts",
+          "score": 0.3125,
+          "static_score": 0.0,
+          "historical_score": 0.3125,
+          "shared": 1,
+          "selected_count": 3,
+          "candidate_count": 1
+        },
+        {
+          "path": "src/users/profile.ts",
+          "score": 0.3125,
+          "static_score": 0.0,
+          "historical_score": 0.3125,
+          "shared": 1,
+          "selected_count": 3,
+          "candidate_count": 1
+        },
+        {
+          "path": "tests/auth.test.ts",
+          "score": 0.1125,
+          "static_score": 1.0,
+          "historical_score": 0.0625,
+          "distance": 1
+        }
       ]
     },
     {
-      "name": "two selected files: the nearest selected file sets the distance, and neither is recommended",
+      "name": "two selected files: the best selected file sets each score, and neither is recommended",
       "cutoff_subject": "Add vendored output and odd paths",
-      "selected": ["src/auth/session.ts", "src/auth/token.ts"],
+      "selected": [
+        "src/auth/session.ts",
+        "src/auth/token.ts"
+      ],
       "expected": [
-        { "path": "src/billing/invoice.ts", "score": 0.9, "static_score": 1.0, "historical_score": 0.75, "distance": 1, "shared": 3, "selected_count": 4, "candidate_count": 5 },
-        { "path": "src/api/routes.ts", "score": 0.6, "static_score": 1.0, "historical_score": 0.0, "distance": 1 }
+        {
+          "path": "src/billing/invoice.ts",
+          "score": 0.7269230769230769,
+          "static_score": 1.0,
+          "historical_score": 0.676923076923077,
+          "distance": 1,
+          "shared": 3,
+          "selected_count": 4,
+          "candidate_count": 5
+        },
+        {
+          "path": "src/api/routes.ts",
+          "score": 0.6076923076923076,
+          "static_score": 1.0,
+          "historical_score": 0.5576923076923077,
+          "distance": 1,
+          "shared": 2,
+          "selected_count": 3,
+          "candidate_count": 3
+        },
+        {
+          "path": "src/users/account.ts",
+          "score": 0.3076923076923077,
+          "static_score": 0.0,
+          "historical_score": 0.3076923076923077,
+          "shared": 1,
+          "selected_count": 3,
+          "candidate_count": 3
+        },
+        {
+          "path": "src/billing/tax.ts",
+          "score": 0.019230769230769232,
+          "static_score": 0.0,
+          "historical_score": 0.019230769230769232
+        },
+        {
+          "path": "src/módulo uno/índice.ts",
+          "score": 0.019230769230769232,
+          "static_score": 0.0,
+          "historical_score": 0.019230769230769232
+        },
+        {
+          "path": "tests/auth.test.ts",
+          "score": 0.019230769230769232,
+          "static_score": 0.0,
+          "historical_score": 0.019230769230769232
+        }
       ]
     }
   ]

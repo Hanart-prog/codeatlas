@@ -13,12 +13,13 @@ atlas-graph.workspace = true
 atlas-model.workspace = true
 atlas-parser.workspace = true
 atlas-storage.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
 atlas-fixtures.workspace = true
+git2.workspace = true
 proptest.workspace = true
 serde.workspace = true
-serde_json.workspace = true
 tempfile.workspace = true
 
 [lints]

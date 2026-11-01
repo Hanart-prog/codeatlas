@@ -19,5 +19,8 @@ export function useSelectedRepository(): SelectedRepository {
     setId(next);
   }, []);
 
-  return { repository: data?.find((entry) => entry.id === id) ?? data?.[0], select };
+  // Opening a path registers it before analysis can fail, so with no valid choice
+  // fall back to something that was analyzed rather than the newest attempt.
+  const repository = data?.find((entry) => entry.id === id) ?? data?.find((entry) => entry.analyzed_at !== null);
+  return { repository, select };
 }

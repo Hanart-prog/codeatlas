@@ -300,7 +300,13 @@ impl Database {
                 ])?;
                 let row_id = transaction.last_insert_rowid();
                 row_ids.push(row_id);
-                for span in &identity.spans {
+                for (index, span) in identity.spans.iter().enumerate() {
+                    // A file first seen by a rename held its old path for no commit
+                    // in the window, and that span shares the new one's start.
+                    let next = identity.spans.get(index + 1);
+                    if next.is_some_and(|next| next.valid_from == span.valid_from) {
+                        continue;
+                    }
                     insert_path.execute(params![
                         row_id,
                         span.path.as_str(),
@@ -359,6 +365,18 @@ impl Database {
         Ok(())
     }
 
+    /// Makes a completed run the one later reads use.
+    pub fn mark_run_latest(&self, run: AnalysisRunId) -> Result<(), StorageError> {
+        self.connection.execute(
+            "UPDATE analysis_runs SET used_order = 1 + (
+                 SELECT max(used_order) FROM analysis_runs WHERE repository_id = (
+                     SELECT repository_id FROM analysis_runs WHERE id = ?1))
+             WHERE id = ?1",
+            [run.0],
+        )?;
+        Ok(())
+    }
+
     /// The most recently completed run of a repository.
     pub fn latest_run(&self, repository_id: RepositoryId) -> Result<Option<RunRow>, StorageError> {
         let run = self
@@ -367,7 +385,7 @@ impl Database {
                 &format!(
                     "SELECT {RUN_COLUMNS} FROM analysis_runs
                      WHERE repository_id = ?1 AND status = 'completed'
-                     ORDER BY completed_at DESC, id DESC LIMIT 1"
+                     ORDER BY used_order DESC, completed_at DESC, id DESC LIMIT 1"
                 ),
                 [repository_id.0],
                 run_row,

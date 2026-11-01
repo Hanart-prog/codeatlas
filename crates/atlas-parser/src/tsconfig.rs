@@ -30,6 +30,8 @@ pub fn parse_tsconfig(bytes: &[u8]) -> ParsedTsconfig {
     let Ok(text) = std::str::from_utf8(bytes) else {
         return invalid;
     };
+    // Editors on Windows often save a byte order mark, which TypeScript accepts.
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let Ok(config) = serde_json::from_str::<Value>(&strip_jsonc(text)) else {
         return invalid;
     };
@@ -181,5 +183,11 @@ mod tests {
         fn arbitrary_bytes_never_panic(bytes in prop::collection::vec(any::<u8>(), 0..500)) {
             parse_tsconfig(&bytes);
         }
+    }
+
+    #[test]
+    fn a_byte_order_mark_is_accepted() {
+        let parsed = parse_tsconfig(b"\xef\xbb\xbf{\"compilerOptions\":{}}");
+        assert_eq!(parsed.status, Some(TsconfigStatus::Applied));
     }
 }

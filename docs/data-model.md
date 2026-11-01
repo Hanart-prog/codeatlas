@@ -34,3 +34,9 @@ Spans use first-parent positions rather than commit ids. Positions are linear, w
 Snapshots belong to a commit rather than a run, so runs can share them, and parsing depends only on content, so unchanged files are parsed once across all commits. The language is in the cache key because `.ts` and `.tsx` grammars can parse the same bytes differently.
 
 Author names and emails are not stored, because no v1 feature needs them.
+
+## Backtests
+
+`backtest_runs` holds one row per analysis run and parameter set. `params_json` is the key, covering every parameter and version that affects results, and `metrics_json` is the whole result, because nothing queries inside it. A repeat returns the stored row.
+
+`analysis_runs.used_order` records which run was last asked for, because a repeat analysis of an older commit is served from cache and must still become the current one.

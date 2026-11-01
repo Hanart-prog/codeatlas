@@ -215,11 +215,15 @@ pub fn file_detail(
             AtlasError::NotFound(format!("{path} is not a source file at this commit"))
         })?;
 
+    // Activity is known for the analyzed commit. At any other commit it would
+    // include work from after that commit.
     let churn = match database.latest_run(repository.id)? {
-        Some(run) => run_churn(&database.changes(run.id)?, database.identities(run.id)?)
-            .into_iter()
-            .find(|file| &file.path == path && file.exists_at_tip),
-        None => None,
+        Some(run) if run.target_oid == snapshot.commit => {
+            run_churn(&database.changes(run.id)?, database.identities(run.id)?)
+                .into_iter()
+                .find(|file| &file.path == path && file.exists_at_tip)
+        }
+        _ => None,
     };
 
     let (imports, imported_by) = (

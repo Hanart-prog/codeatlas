@@ -40,7 +40,6 @@ export const ROUTES: readonly [AppRoute, ...AppRoute[]] = [
     label: "Backtesting",
     icon: BarChart3,
     purpose: "Measure recommendations against later commits and baselines, with sample sizes and known biases.",
-    plannedPhase: 5,
   },
   {
     id: "reports",

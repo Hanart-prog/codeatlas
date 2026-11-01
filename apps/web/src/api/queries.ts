@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import type { BacktestRequest } from "@/types/generated/BacktestRequest";
 import type { CompareRequest } from "@/types/generated/CompareRequest";
 import type { ImpactRequest } from "@/types/generated/ImpactRequest";
 import type { JobResponse } from "@/types/generated/JobResponse";
@@ -7,6 +8,7 @@ import type { JobResponse } from "@/types/generated/JobResponse";
 import {
   ApiRequestError,
   type GraphFilter,
+  fetchBacktest,
   fetchCommits,
   fetchFileDetail,
   fetchGraph,
@@ -18,6 +20,7 @@ import {
   runCompare,
   runImpact,
   startAnalysis,
+  startBacktest,
 } from "./client";
 
 const JOB_POLL_MS = 300;
@@ -88,15 +91,36 @@ export function useFileDetail(id: number | undefined, path: string | undefined, 
   });
 }
 
-async function waitForJob(job: JobResponse): Promise<void> {
+async function waitForJob(job: JobResponse, onUpdate?: (job: JobResponse) => void): Promise<void> {
   let current = job;
   while (current.status === "queued" || current.status === "running") {
     await new Promise((resolve) => setTimeout(resolve, JOB_POLL_MS));
     current = await fetchJob(current.id);
+    onUpdate?.(current);
   }
   if (current.status === "failed") {
     throw new ApiRequestError("analysis_failed", current.error ?? "The analysis failed.");
   }
+}
+
+export function useLatestBacktest(id: number | undefined) {
+  return useQuery({
+    queryKey: ["backtest", id],
+    queryFn: ({ signal }) => fetchBacktest(id as number, signal),
+    enabled: id !== undefined,
+    retry: false,
+  });
+}
+
+/** Runs a backtest and waits for it, reporting each poll. */
+export function useRunBacktest(onUpdate: (job: JobResponse) => void) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, request }: { id: number; request: BacktestRequest }) => {
+      await waitForJob(await startBacktest(id, request), onUpdate);
+    },
+    onSuccess: (_, { id }) => client.invalidateQueries({ queryKey: ["backtest", id] }),
+  });
 }
 
 /** Opens a repository by path, analyzes it and waits for the result. */

@@ -59,7 +59,7 @@ pub enum Command {
     Compare(CompareArgs),
     /// Show how the import graph grew, commit by commit
     Timeline(TimelineArgs),
-    /// [Phase 5, not implemented] Evaluate recommendations on later commits
+    /// Evaluate recommendations on later commits
     Backtest(BacktestArgs),
     /// [Phase 6, not implemented] Write a static HTML report
     Report(ReportArgs),
@@ -178,6 +178,12 @@ pub struct BacktestArgs {
     /// Cutoffs to evaluate, comma-separated
     #[arg(long, value_delimiter = ',', default_value = "5,10")]
     pub top_k: Vec<u32>,
+    /// First-parent commits of history before each case
+    #[arg(long, default_value_t = 200)]
+    pub window: u32,
+    /// Seed for the random baseline, input sensitivity and intervals
+    #[arg(long, default_value_t = 1)]
+    pub seed: u32,
     /// Output format
     #[arg(long, value_enum, default_value_t)]
     pub format: OutputFormat,

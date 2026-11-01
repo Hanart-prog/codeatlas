@@ -39,6 +39,8 @@ The fixture would pass while a real repository produced a sparse graph, leaving 
 
 ### 3. Backtest definitions leave results open to interpretation
 
+Resolved in Phase 5 as below ([evaluation.md](evaluation.md)).
+
 | Gap in section 10 | Resolution (Phase 5) |
 |---|---|
 | Files added by the evaluation commit did not exist at the parent, so they can never be recommended | Exclude them from targets and report the count |
@@ -53,7 +55,9 @@ The fixture would pass while a real repository produced a sparse graph, leaving 
 - Section 9 says to show why a metric may be incomparable but gives no rule. **Resolved in Phase 4:** imports from files that did not parse cleanly are marked `uncertain`, and notes cover `tsconfig.json`, parsing, resolution and commit order.
 - Section 9 compares cycles by member set, which reports a cycle gaining one file as two unrelated events. **Resolved in Phase 4:** exact sets still decide unchanged cycles, and leftovers sharing members are paired as a changed cycle.
 - The specification has no timeline. **Added in Phase 4:** it answers which two commits are worth comparing, and it uses only existing snapshots.
+- Section 12 lists `/backtests` with no way to read a result. **Resolved in Phase 5:** `GET /repositories/:id/backtests` returns `{ entry }`, and jobs report progress.
 - Section 8 gives `static_score = 1 / distance` without saying how to combine several selected files. **Resolved in Phase 3:** use the minimum distance across selected files, matching `max_over_selected` for history.
+- **Resolved after Phase 5:** backtesting showed the specified score losing to a baseline, so [ADR 14](decisions/0014-score-from-smoothed-co-change.md) replaced it.
 - With weights 0.60 and 0.40, any direct importer with no history (0.60) outranks a file with `P = 1.0` and no import (0.40). Keep the weights as specified, and use the Phase 5 backtest to report how alternatives perform.
 - Conditional probability inflates files that change constantly, such as barrels and changelogs. **Resolved in Phase 3:** base rate and lift are shown for explanation only, and a low lift adds a caveat.
 - Floating-point ties can differ by rounding. **Resolved in Phase 3:** scores compare at fixed precision before the path tiebreak.

@@ -7,7 +7,8 @@ use atlas_api::{AppState, router};
 use atlas_fixtures::generate_main_fixture;
 use atlas_model::{
     ApiErrorBody, CommitPage, CompareResponse, ErrorCode, FileDetail, GraphResponse,
-    ImpactResponse, JobResponse, JobStatus, OverviewResponse, RepositoryEntry, TimelineResponse,
+    ImpactResponse, JobResponse, JobStatus, LatestBacktest, OverviewResponse, RepositoryEntry,
+    TimelineResponse,
 };
 use axum::Router;
 use axum::body::Body;
@@ -557,6 +558,71 @@ async fn timeline_route_samples_commits_and_validates() {
     let uri = format!("/repositories/{id}/timeline?points=0");
     let error: ApiErrorBody = harness
         .json(Method::GET, &uri, None, StatusCode::BAD_REQUEST)
+        .await;
+    assert_eq!(error.error.code, ErrorCode::InvalidInput);
+}
+
+async fn wait_for_job(harness: &Harness, mut job: JobResponse) -> JobResponse {
+    for _ in 0..500 {
+        if !matches!(job.status, JobStatus::Queued | JobStatus::Running) {
+            return job;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        let uri = format!("/jobs/{}", job.id);
+        job = harness.json(Method::GET, &uri, None, StatusCode::OK).await;
+    }
+    panic!("job did not finish");
+}
+
+#[tokio::test]
+async fn backtest_route_runs_a_job_and_stores_the_result() {
+    let repo = tempfile::tempdir().unwrap();
+    generate_main_fixture(repo.path()).unwrap();
+    let harness = Harness::new();
+    let id = harness.open(repo.path()).await.id.0;
+    harness.analyze(id, "{}").await;
+    let uri = format!("/repositories/{id}/backtests");
+
+    let none: LatestBacktest = harness.json(Method::GET, &uri, None, StatusCode::OK).await;
+    assert!(none.entry.is_none());
+
+    let job: JobResponse = harness
+        .json(
+            Method::POST,
+            &uri,
+            Some(r#"{"warmup":4}"#),
+            StatusCode::ACCEPTED,
+        )
+        .await;
+    let job = wait_for_job(&harness, job).await;
+    assert_eq!(job.status, JobStatus::Completed, "{:?}", job.error);
+    let progress = job.progress.unwrap();
+    assert_eq!(progress.done, progress.total);
+
+    let stored: LatestBacktest = harness.json(Method::GET, &uri, None, StatusCode::OK).await;
+    let stored = stored.entry.unwrap();
+    assert_eq!(stored.result.warmup, 4);
+    assert_eq!(progress.total, stored.result.counts.evaluated_cases);
+
+    let job: JobResponse = harness
+        .json(
+            Method::POST,
+            &uri,
+            Some(r#"{"warmup":0}"#),
+            StatusCode::ACCEPTED,
+        )
+        .await;
+    let job = wait_for_job(&harness, job).await;
+    assert_eq!(job.status, JobStatus::Failed);
+    assert!(job.error.unwrap().contains("warmup"));
+
+    let error: ApiErrorBody = harness
+        .json(
+            Method::POST,
+            &uri,
+            Some(r#"{"nope":1}"#),
+            StatusCode::BAD_REQUEST,
+        )
         .await;
     assert_eq!(error.error.code, ErrorCode::InvalidInput);
 }

@@ -3,6 +3,7 @@
 //! This crate has no knowledge of Git, SQLite or HTTP, which keeps the engine
 //! usable from the CLI and the API alike.
 
+pub mod backtest;
 pub mod compare;
 pub mod config;
 pub mod dto;
@@ -12,6 +13,10 @@ pub mod history;
 pub mod ids;
 pub mod impact;
 
+pub use backtest::{
+    BacktestCase, BacktestCounts, BacktestEntry, BacktestRequest, BacktestResult, CaseRanking,
+    Estimate, LatestBacktest, MetricsAtK, Ranker, RankerResult, TrendBucket, TrendRate,
+};
 pub use compare::{
     ArchitectureSummary, CommitRelation, CompareCounts, CompareRequest, CompareResponse,
     CycleChange, FileMetricChange, FileRename, ImportChange, RenameEvidence, TimelinePoint,
@@ -21,8 +26,8 @@ pub use config::{AnalysisConfig, AtlasConfig, Limits, ServerConfig, StorageConfi
 pub use dto::{
     AnalysisStatus, AnalyzeRequest, ApiErrorBody, ApiErrorDetail, CommitEntry, CommitPage,
     CommitSummary, DatabaseHealth, DependencyEdgeType, ExclusionCount, FileChurn, FileSummary,
-    HealthResponse, HealthStatus, HistorySummary, JobResponse, JobStatus, OpenRepositoryRequest,
-    OverviewResponse, RepositoryEntry, RunSummary,
+    HealthResponse, HealthStatus, HistorySummary, JobProgress, JobResponse, JobStatus,
+    OpenRepositoryRequest, OverviewResponse, RepositoryEntry, RunSummary,
 };
 pub use error::{AtlasError, ErrorCode};
 pub use graph::{
@@ -49,5 +54,8 @@ pub const API_VERSION: &str = "v1";
 /// Version of import extraction. Changing it invalidates cached snapshots.
 pub const PARSER_VERSION: u32 = 1;
 
+/// Version of the backtest protocol. Changing it invalidates stored backtests.
+pub const BACKTEST_VERSION: u32 = 1;
+
 /// Version of the analysis algorithms. Changing it invalidates cached analyses.
-pub const ALGORITHM_VERSION: u32 = 3;
+pub const ALGORITHM_VERSION: u32 = 4;

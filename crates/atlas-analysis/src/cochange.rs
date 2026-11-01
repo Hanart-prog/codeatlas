@@ -6,7 +6,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use atlas_git::{ExclusionRules, GitRepository, is_typescript};
-use atlas_model::history::{CommitChanges, IdentifiedChange, IdentityIndex};
+use atlas_model::history::{CommitChanges, FileChange, IdentifiedChange, IdentityIndex};
 use atlas_model::{AtlasConfig, AtlasError, CoChangeStats, Oid, RepoPath};
 
 use crate::lineage::assign_identities;
@@ -111,6 +111,21 @@ pub fn load_scoped_history(
         .map(|oid| git.commit_changes(oid, &rules))
         .collect::<Result<Vec<_>, _>>()?;
 
+    Ok(scope_history(
+        commits,
+        git.is_shallow(),
+        walk.is_truncated,
+        config,
+    ))
+}
+
+/// Resolves `commits`, oldest first, to the identities at the last of them.
+pub(crate) fn scope_history(
+    commits: Vec<CommitChanges>,
+    is_shallow: bool,
+    is_truncated: bool,
+    config: &AtlasConfig,
+) -> ScopedHistory {
     let (identities, changes) = assign_identities(&commits);
     let sets = eligible_sets(commits.len(), &changes);
     let merges: Vec<bool> = commits.iter().map(|c| c.commit.parents.len() > 1).collect();
@@ -134,25 +149,29 @@ pub fn load_scoped_history(
         merge_commit_count: index.merges,
         bulk_threshold: threshold,
         min_shared_commits: config.analysis.min_shared_commits,
-        is_shallow: git.is_shallow(),
-        is_truncated: walk.is_truncated,
+        is_shallow,
+        is_truncated,
     };
-    Ok(ScopedHistory {
+    ScopedHistory {
         commits,
         index,
         alive,
         stats,
-    })
+    }
 }
 
-/// The distinct eligible identities of each commit, sorted. Eligible means not
-/// excluded and TS/TSX, the same files the import graph covers.
+/// Not excluded and TS/TSX, the same files the import graph covers. Co-change and
+/// backtesting share this one definition.
+pub(crate) fn is_eligible(file: &FileChange) -> bool {
+    let path = file.new_path.as_ref().or(file.old_path.as_ref());
+    file.exclusion.is_none() && path.is_some_and(is_typescript)
+}
+
+/// The distinct eligible identities of each commit, sorted.
 fn eligible_sets(commit_count: usize, changes: &[IdentifiedChange]) -> Vec<Vec<IdentityIndex>> {
     let mut sets = vec![Vec::new(); commit_count];
     for change in changes {
-        let file = &change.change;
-        let path = file.new_path.as_ref().or(file.old_path.as_ref());
-        if file.exclusion.is_none() && path.is_some_and(is_typescript) {
+        if is_eligible(&change.change) {
             sets[change.position as usize].push(change.identity);
         }
     }

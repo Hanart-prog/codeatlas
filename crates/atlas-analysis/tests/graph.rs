@@ -400,13 +400,17 @@ fn graph_limits_are_enforced() {
     let mut config = AtlasConfig::default();
     config.limits.max_graph_nodes = 2;
     let mut database = Database::open_in_memory().unwrap();
-    let error = analyze(
+    let outcome = analyze(
         &mut database,
         dir.path(),
         &AnalyzeOptions::default(),
         &config,
     )
-    .unwrap_err();
+    .unwrap();
+    assert!(outcome.graph_skipped.unwrap().contains("max_graph_nodes"));
+
+    let query = query(None);
+    let error = graph(&database, &outcome.repository, &query, &config).unwrap_err();
     assert!(error.to_string().contains("max_graph_nodes"), "{error}");
 }
 

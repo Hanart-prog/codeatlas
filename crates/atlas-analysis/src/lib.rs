@@ -1,9 +1,9 @@
 //! Churn, co-change, impact ranking, comparison and temporal backtesting.
 //!
 //! This crate provides history indexing, file identity lineage, churn, import
-//! snapshots, co-change, impact ranking and architecture comparison. Temporal
-//! backtesting arrives in Phase 5.
+//! snapshots, co-change, impact ranking, architecture comparison and backtesting.
 
+mod backtest;
 mod churn;
 mod cochange;
 mod compare;
@@ -15,6 +15,7 @@ mod pipeline;
 mod snapshot;
 mod timeline;
 
+pub use backtest::backtest;
 pub use churn::{ChurnInput, compute_churn};
 pub use cochange::{CoChangeIndex, ScopedHistory, load_scoped_history};
 pub use compare::compare;

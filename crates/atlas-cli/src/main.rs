@@ -1,5 +1,6 @@
 //! The `codeatlas` command. Results go to stdout and diagnostics to stderr.
 
+mod backtest;
 mod cli;
 mod compare;
 mod graph;
@@ -62,7 +63,7 @@ fn run(cli: Cli) -> Result<(), AtlasError> {
         Command::Impact(args) => impact::run(args, &config, &data_dir),
         Command::Compare(args) => compare::run(args, &config, &data_dir),
         Command::Timeline(args) => timeline::run(args, &config, &data_dir),
-        Command::Backtest(_) => planned("`codeatlas backtest`", 5),
+        Command::Backtest(args) => backtest::run(args, &config, &data_dir),
         Command::Report(_) => planned("`codeatlas report`", 6),
         Command::Demo => planned("`codeatlas demo`", 6),
     }

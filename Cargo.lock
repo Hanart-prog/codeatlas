@@ -71,6 +71,7 @@ dependencies = [
  "atlas-model",
  "atlas-parser",
  "atlas-storage",
+ "git2",
  "proptest",
  "serde",
  "serde_json",

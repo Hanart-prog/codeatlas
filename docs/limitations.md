@@ -1,14 +1,14 @@
 # Limitations
 
-## Current state (Phase 4)
+## Current state (Phase 5)
 
-- No backtesting exists, so ranking quality has not been measured.
+- Rankings were measured on six held-out repositories, which is a small sample. See [evaluation.md](evaluation.md).
 - No benchmark has been run, so this project makes no performance claims.
-- Two of the six dashboard sections are placeholders that say so.
+- One of the six dashboard sections is a placeholder that says so.
 - `codeatlas serve` serves the dashboard from `apps/web/dist`, so a binary alone serves only the API, and it must run from the repository root or be given `--web-dir`.
 - Large graphs are cut to the most connected 500 files, with the true totals shown. Directory aggregation arrives in Phase 6.
 - Only macOS arm64 has been tested locally, and Linux runs in CI. Windows is untested.
-- Analysis jobs cannot be cancelled yet, and they live in memory, so job ids do not survive a restart. Results do.
+- Requests have no time limit, and a large impact window or first timeline runs until it finishes. Jobs cannot be cancelled yet, and they live in memory, so job ids do not survive a restart. Results do.
 - Each new tip commit reindexes the whole window. Incremental indexing is post-core.
 - `make verify` and the CI `verify` job recheck one pinned commit of `sindresorhus/ky` on each push. `shadcn-ui/taxonomy` and `colinhacks/zod` are rechecked by hand.
 - A process killed mid-analysis leaves its run marked `running`. It holds no history and does not block a later run.
@@ -38,14 +38,15 @@
 
 ## Change impact
 
-- Scores are a ranking heuristic with hand-picked weights (0.6 static, 0.4 historical). They are not probabilities, and they have not been evaluated yet. Phase 5 measures them.
-- With these weights, any direct importer (0.60) outranks a file with perfect co-change and no import (0.40).
+- Scores are a ranking heuristic, not probabilities. One weight was tuned on development repositories, and [evaluation.md](evaluation.md) measures the result on others.
+- Imports barely affect the score, so a critical import with no shared history can rank below files that merely change together.
+- Files with no link to the change can appear, marked "Often changes".
 - Co-change is correlation. Files can change together for unrelated reasons, and one merge can bundle unrelated work.
 - Co-change covers TS/TSX files only, so changes to other files are not recommended.
 - Conditional probability inflates files that change constantly. Base rate and lift are shown to expose this, but they do not affect the score.
-- Pairs need 3 shared commits by default, so young files have little historical evidence, and a score can jump when a pair reaches the threshold.
+- One or two shared commits count, with a caveat, so young files can rank on thin evidence.
 - Each query reads up to 200 commits from Git, so it is not cached. Rankings are not stored; identical inputs reproduce them.
-- A new file with no history and no importers gets no recommendations. That is missing evidence, not safety.
+- A new file with no history and no importers gets only frequently changed files. That is missing evidence, not safety, and a note says so.
 
 ## Security
 
@@ -65,11 +66,22 @@
 - The timeline shows up to 40 evenly spaced commits of the latest analysis on the dashboard, so a change between two points can be hidden. Up to 200 are available from the API and CLI. Sampled counts come from each commit's own snapshot, and the first load builds any snapshots that are missing.
 - One manual run on a generated repository of 10,000 files and 40,000 imports took 1.4 to 1.8s for a comparison with about 14,600 import changes, 8.7s for a first timeline and 1.1s for a cached one. Its shape is synthetic and this is not a benchmark. Phase 6 adds those.
 
+## Repository safety
+
+- Repositories are opened as bare, so working tree files and `core.worktree` cannot affect results. A global Git config can still set attributes.
+- A commit with more than 2 million paths, or nested past 512 levels, is refused.
+
+## Backtesting
+
+- It measures co-edit prediction, not bugs, causal impact or productivity. [evaluation.md](evaluation.md) lists its biases.
+- The default warm-up of 100 eligible commits leaves small repositories with nothing to evaluate, and the result says so.
+- A backtest evaluates up to 1,000 cases and cannot be cancelled yet.
+- `make verify` covers one pinned commit in CI. The published results for the three repositories were manual runs.
+
 ## Planned scope limits
 
 These apply once the features exist. [spec-review.md](spec-review.md) records open questions.
 
 - TypeScript and TSX only. Unsupported languages are to be labelled, not silently dropped.
 - Static imports only. Runtime `require`, non-literal dynamic imports, webpack aliases and workspace aliases are out of scope for v1.
-- Backtests will measure co-edit prediction, not bugs, causal impact or productivity.
 - Impact scores will be a ranking heuristic, not a probability of failure.

@@ -47,6 +47,16 @@ pub const MIGRATIONS: &[Migration] = &[
         name: "import_snapshots",
         sql: include_str!("../migrations/0003_import_snapshots.sql"),
     },
+    Migration {
+        version: 4,
+        name: "backtests",
+        sql: include_str!("../migrations/0004_backtests.sql"),
+    },
+    Migration {
+        version: 5,
+        name: "run_order",
+        sql: include_str!("../migrations/0005_run_order.sql"),
+    },
 ];
 
 /// What a migration pass did.
@@ -79,10 +89,44 @@ pub(crate) fn current_version(connection: &Connection) -> Result<u32, StorageErr
     Ok(version)
 }
 
+/// Whether every migration is applied unchanged. This takes no write lock, so that
+/// opening a connection never waits for, or fails on, a long write elsewhere.
+fn is_current(connection: &Connection, migrations: &[Migration]) -> Result<bool, StorageError> {
+    let has_ledger: bool = connection.query_row(
+        "SELECT EXISTS (SELECT 1 FROM sqlite_master WHERE name = 'schema_migrations')",
+        [],
+        |row| row.get(0),
+    )?;
+    if !has_ledger {
+        return Ok(false);
+    }
+    let mut statement =
+        connection.prepare("SELECT version, checksum FROM schema_migrations ORDER BY version")?;
+    let applied = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, u32>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(applied.len() == migrations.len()
+        && applied
+            .iter()
+            .zip(migrations)
+            .all(|((version, checksum), migration)| {
+                *version == migration.version && *checksum == migration.checksum()
+            }))
+}
+
 pub(crate) fn apply(
     connection: &mut Connection,
     migrations: &[Migration],
 ) -> Result<MigrationReport, StorageError> {
+    if is_current(connection, migrations)? {
+        let version = migrations.last().map_or(0, |migration| migration.version);
+        return Ok(MigrationReport {
+            from_version: version,
+            to_version: version,
+        });
+    }
     let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
     transaction.execute(CREATE_LEDGER, [])?;
 

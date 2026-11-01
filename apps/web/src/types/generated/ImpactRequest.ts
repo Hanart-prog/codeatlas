@@ -27,10 +27,10 @@ top_k?: number,
  */
 history_window?: number, 
 /**
- * Weight of static evidence (default 0.6).
+ * Weight of static evidence (default 0.05).
  */
 static_weight?: number, 
 /**
- * Weight of historical evidence (default 0.4).
+ * Weight of historical evidence (default 1).
  */
 historical_weight?: number, };

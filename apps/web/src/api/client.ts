@@ -1,3 +1,4 @@
+import type { BacktestRequest } from "@/types/generated/BacktestRequest";
 import type { TimelineResponse } from "@/types/generated/TimelineResponse";
 import type { CompareRequest } from "@/types/generated/CompareRequest";
 import type { CompareResponse } from "@/types/generated/CompareResponse";
@@ -9,6 +10,7 @@ import type { GraphResponse } from "@/types/generated/GraphResponse";
 import type { HealthResponse } from "@/types/generated/HealthResponse";
 import type { ImpactRequest } from "@/types/generated/ImpactRequest";
 import type { ImpactResponse } from "@/types/generated/ImpactResponse";
+import type { LatestBacktest } from "@/types/generated/LatestBacktest";
 import type { JobResponse } from "@/types/generated/JobResponse";
 import type { OverviewResponse } from "@/types/generated/OverviewResponse";
 import type { RepositoryEntry } from "@/types/generated/RepositoryEntry";
@@ -107,6 +109,12 @@ export const runCompare = (id: number, compare: CompareRequest) =>
 
 export const fetchTimeline = (id: number, signal: AbortSignal) =>
   request<TimelineResponse>(`/repositories/${id}/timeline`, { signal });
+
+export const fetchBacktest = (id: number, signal: AbortSignal) =>
+  request<LatestBacktest>(`/repositories/${id}/backtests`, { signal });
+
+export const startBacktest = (id: number, backtest: BacktestRequest) =>
+  postJson<JobResponse>(`/repositories/${id}/backtests`, backtest);
 
 export const fetchJob = (id: number) => request<JobResponse>(`/jobs/${id}`);
 

@@ -14,7 +14,7 @@ pub const DEFAULT_TIMELINE_POINTS: u32 = 40;
 const MAX_TIMELINE_POINTS: u32 = 200;
 
 /// `count` positions spread evenly over `total`, always with the first and last.
-fn sample(total: u32, count: u32) -> Vec<u32> {
+pub(crate) fn sample(total: u32, count: u32) -> Vec<u32> {
     if total <= count {
         return (0..total).collect();
     }

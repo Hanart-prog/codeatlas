@@ -189,15 +189,25 @@ fn evidence_is_explained() {
     assert_eq!(response.history.merge_commit_count, 1);
 
     let routes = &response.recommendations[1];
-    assert_eq!(routes.evidence, [EvidenceKind::StaticDependency]);
+    assert_eq!(
+        routes.evidence,
+        [
+            EvidenceKind::StaticDependency,
+            EvidenceKind::HistoricalCoChange
+        ]
+    );
     assert!(
         routes
             .caveats
             .iter()
-            .any(|c| c.contains("1 time(s), below the minimum of 3")),
+            .any(|c| c.contains("only 1 time(s), so this is weak evidence")),
         "{:?}",
         routes.caveats
     );
+
+    let idle = response.recommendations.last().unwrap();
+    assert_eq!(idle.evidence, [EvidenceKind::ActivityOnly]);
+    assert!(idle.caveats[0].contains("Nothing links this file"));
 }
 
 #[test]
@@ -212,7 +222,7 @@ fn history_only_candidates_are_marked_as_correlation() {
         &config,
     )
     .unwrap();
-    let session = &response.recommendations[1];
+    let session = &response.recommendations[0];
     assert_eq!(session.evidence, [EvidenceKind::HistoricalCoChange]);
     assert!(session.caveats[0].contains("correlation"));
 }
@@ -237,7 +247,7 @@ fn future_commits_cannot_change_a_historical_ranking() {
         &config,
     )
     .unwrap();
-    assert!(before.recommendations.is_empty());
+    assert_eq!(paths(&before), ["b.ts"]);
 
     // Everything after the cutoff tries to change the answer: repeated
     // co-change, a new importer, and a new import in an existing file.
@@ -297,7 +307,19 @@ fn head_imports_do_not_leak_into_a_historical_cutoff() {
         &config,
     )
     .unwrap();
-    assert_eq!(paths(&response), ["src/api/routes.ts"]);
+    assert_eq!(
+        paths(&response),
+        [
+            "src/api/routes.ts",
+            "src/auth/token.ts",
+            "src/users/profile.ts"
+        ],
+        "routes imports session, the others only changed with it"
+    );
+    assert_eq!(
+        response.recommendations[0].evidence[0],
+        EvidenceKind::StaticDependency
+    );
 }
 
 #[test]
@@ -466,7 +488,8 @@ fn the_window_limits_history_and_is_reported() {
         response
             .recommendations
             .iter()
-            .all(|r| r.historical_score == 0.0)
+            .all(|r| r.historical_evidence.is_none()),
+        "session did not change in the last two commits"
     );
 }
 
@@ -481,15 +504,22 @@ fn top_k_and_depth_are_applied_after_ranking() {
         ..request(&["src/auth/token.ts"], None)
     };
     let response = impact(&database, &repository, &top_one, &config).unwrap();
-    assert_eq!(paths(&response), ["src/auth/session.ts"]);
-    assert_eq!(response.candidate_count, 3);
+    assert_eq!(paths(&response), ["src/api/routes.ts"]);
+    assert_eq!(response.candidate_count, 7);
 
     let shallow = ImpactRequest {
         max_depth: Some(1),
         ..request(&["src/auth/token.ts"], None)
     };
     let response = impact(&database, &repository, &shallow, &config).unwrap();
-    assert_eq!(paths(&response), ["src/auth/session.ts"]);
+    assert!(response.recommendations[0].static_evidence.is_none());
+    assert_eq!(
+        response.recommendations[1]
+            .static_evidence
+            .as_ref()
+            .map(|e| e.distance),
+        Some(1)
+    );
 }
 
 #[test]

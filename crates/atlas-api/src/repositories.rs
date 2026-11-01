@@ -8,9 +8,10 @@ use atlas_analysis::{
     timeline as load_timeline,
 };
 use atlas_model::{
-    AnalyzeRequest, AtlasError, CommitPage, CompareRequest, CompareResponse, DEFAULT_HISTORY_LIMIT,
-    FileDetail, GraphResponse, ImpactRequest, ImpactResponse, JobResponse, OpenRepositoryRequest,
-    OverviewResponse, RepoPath, RepositoryEntry, RepositoryId, TimelineResponse,
+    AnalyzeRequest, AtlasError, BacktestRequest, CommitPage, CompareRequest, CompareResponse,
+    DEFAULT_HISTORY_LIMIT, FileDetail, GraphResponse, ImpactRequest, ImpactResponse, JobResponse,
+    LatestBacktest, OpenRepositoryRequest, OverviewResponse, RepoPath, RepositoryEntry,
+    RepositoryId, TimelineResponse,
 };
 use axum::Json;
 use axum::extract::rejection::JsonRejection;
@@ -88,7 +89,9 @@ pub async fn overview(
     Path(id): Path<String>,
 ) -> Result<Json<OverviewResponse>, ApiError> {
     let id = parse_id(&id)?;
-    let overview = state.read(move |db| load_overview(db, id)).await?;
+    // Its own connection, because this loads the whole run and should not hold up
+    // other requests.
+    let overview = state.write(move |db, _| load_overview(db, id)).await?;
     Ok(Json(overview))
 }
 
@@ -230,6 +233,37 @@ pub async fn timeline(
         .write(move |db, config| {
             let repository = found(db.repository(id)?)?;
             load_timeline(db, &repository, points, config)
+        })
+        .await?;
+    Ok(Json(result))
+}
+
+/// `POST /repositories/:id/backtests`: starts a background job. Bad parameters
+/// fail the job, because validation belongs to the engine.
+pub async fn start_backtest(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    body: Result<Json<BacktestRequest>, JsonRejection>,
+) -> Result<(StatusCode, Json<JobResponse>), ApiError> {
+    let id = parse_id(&id)?;
+    let request = json_body(body)?;
+    let repository = state.read(move |db| found(db.repository(id)?)).await?;
+    let job = crate::jobs::start_backtest(&state, repository, request);
+    Ok((StatusCode::ACCEPTED, Json(job)))
+}
+
+/// `GET /repositories/:id/backtests`: the newest result, if any.
+pub async fn latest_backtest(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<LatestBacktest>, ApiError> {
+    let id = parse_id(&id)?;
+    let result = state
+        .read(move |db| {
+            found(db.repository(id)?)?;
+            Ok(LatestBacktest {
+                entry: db.latest_backtest(id)?,
+            })
         })
         .await?;
     Ok(Json(result))

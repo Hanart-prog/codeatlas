@@ -1,6 +1,6 @@
 # Algorithms and metric definitions
 
-Status: Phase 3. Phase 5 adds backtesting.
+Status: Phase 5. [evaluation.md](evaluation.md) defines backtesting.
 
 ## History
 
@@ -109,11 +109,14 @@ Pairs are counted sparsely per commit, so work is bounded by the bulk threshold 
 
 Inputs are the selected files as they exist at the cutoff, a depth (default 3), a window, and weights. For each candidate file:
 
+- `rate` is the candidate's commits over all eligible commits in the window.
+- `historical_score` is the largest `(shared + rate) / (selected commits + 1)` over selected files.
 - `static_score = 1 / distance`, using the minimum reverse dependency distance to any selected file within depth, otherwise 0. Type imports count.
-- `historical_score` is the maximum `P(candidate given selected)` over selected files with enough shared commits, otherwise 0.
-- `score = 0.6 * static_score + 0.4 * historical_score`.
+- `score = 1.0 * historical_score + 0.05 * static_score`.
 
-Results sort by score descending, then path ascending, comparing scores at 6 decimal places so that rounding noise cannot decide an order. Selected files and files deleted by the cutoff are never recommended. The score is a ranking heuristic, **not a probability of failure**.
+Results sort by score descending, then path ascending, comparing scores at 6 decimal places so that rounding noise cannot decide an order. Selected files and files deleted by the cutoff are never recommended. The score is a ranking heuristic, **not a probability of failure**. [ADR 14](decisions/0014-score-from-smoothed-co-change.md) explains the choice.
+
+Each result records its evidence: `static_dependency`, `historical_co_change`, or `activity_only` when nothing links it to the change. Fewer than `min_shared_commits` shared commits adds a caveat that the evidence is weak.
 
 A selected file must exist at the cutoff. Its identity is resolved at that point, so history follows renames made before the cutoff, and later renames are unknown.
 
@@ -163,3 +166,6 @@ Phase 4 comparisons are recomputed by [scripts/verify_compare.py](../scripts/ver
 | `colinhacks/zod` (last 402 commits) | 20 | 1,413 | 988 | 33 | 1,631 | Identical |
 
 Direct renames matched `git` on all of `ky` and `zod`, and differed on 8 `taxonomy` pairs because libgit2 and `git` score similarity differently. History following added 12 renames on `taxonomy` that the direct diff missed. The script uses the engine's renames for its import figures, so rename differences stay separate. It also shares the parser's edges, which is why the compiler check runs beside it.
+
+Backtests are rechecked by [scripts/verify_backtest.py](../scripts/verify_backtest.py), from `git` alone. On `ky` (179 cases), `zod` (129), `hono` (353) and `taxonomy` (21), every average matched its case list and every input and target set matched `git diff-tree`. The most-changed baseline matched a replay of `git log` on every case of `ky` and `zod`, and on 19 of 21 of `taxonomy`, where git and libgit2 score renames differently. CI runs this on the pinned `ky` commit.
+

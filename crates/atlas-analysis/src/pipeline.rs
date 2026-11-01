@@ -40,6 +40,8 @@ pub struct AnalyzeOutcome {
     pub run_id: AnalysisRunId,
     /// True when an identical completed run was reused.
     pub cached: bool,
+    /// Why no import graph was built, if the repository is over a limit.
+    pub graph_skipped: Option<String>,
 }
 
 /// Validates a local path as a repository and registers it.
@@ -79,7 +81,11 @@ pub fn analyze(
     let git = GitRepository::open(path)?;
     let target_oid = git.resolve(&options.git_ref)?;
     let repository = database.upsert_repository(&git.canonical_path())?;
-    let config_hash = config.analysis_hash();
+    // Deepening a shallow clone changes what the same commit's history holds.
+    let config_hash = match git.is_shallow() {
+        true => format!("{}-shallow", config.analysis_hash()),
+        false => config.analysis_hash(),
+    };
     let key = RunKey {
         repository_id: repository.id,
         target_oid: &target_oid,
@@ -90,11 +96,13 @@ pub fn analyze(
     };
 
     if let Some(run) = database.cached_run(&key)? {
-        ensure_snapshot(database, &git, &target_oid, config)?;
+        database.mark_run_latest(run.id)?;
+        let graph_skipped = snapshot_or_reason(database, &git, &target_oid, config)?;
         return Ok(AnalyzeOutcome {
             repository,
             run_id: run.id,
             cached: true,
+            graph_skipped,
         });
     }
 
@@ -110,18 +118,36 @@ pub fn analyze(
                 repository,
                 run_id: run.id,
                 cached: true,
+                graph_skipped: None,
             }),
             None => Err(error),
         };
     }
 
-    ensure_snapshot(database, &git, &target_oid, config)?;
+    database.mark_run_latest(run_id)?;
+    let graph_skipped = snapshot_or_reason(database, &git, &target_oid, config)?;
     let repository = database.upsert_repository(&git.canonical_path())?;
     Ok(AnalyzeOutcome {
         repository,
         run_id,
         cached: false,
+        graph_skipped,
     })
+}
+
+/// Builds the graph. A repository over a limit keeps its history analysis, so that
+/// is a reason to report rather than a failure.
+fn snapshot_or_reason(
+    database: &Database,
+    git: &GitRepository,
+    target: &atlas_model::Oid,
+    config: &AtlasConfig,
+) -> Result<Option<String>, AtlasError> {
+    match ensure_snapshot(database, git, target, config) {
+        Ok(_) => Ok(None),
+        Err(AtlasError::TooLarge(reason)) => Ok(Some(reason)),
+        Err(error) => Err(error),
+    }
 }
 
 fn index_history(
