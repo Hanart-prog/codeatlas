@@ -49,6 +49,7 @@ pub fn timeline(
 
     let mut timeline = Vec::new();
     for position in sample(commit_count, points) {
+        database.work().check()?;
         let Some(commit) = database.commit_at(run.id, position)? else {
             continue;
         };

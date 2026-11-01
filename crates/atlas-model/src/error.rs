@@ -25,6 +25,10 @@ pub enum ErrorCode {
     GitError,
     /// SQLite could not serve the request.
     StorageError,
+    /// The work was cancelled.
+    Cancelled,
+    /// The work took longer than its time limit.
+    TimedOut,
     /// An unexpected internal failure.
     Internal,
 }
@@ -58,6 +62,13 @@ pub enum AtlasError {
     /// A storage failure.
     #[error("storage error: {0}")]
     Storage(String),
+    /// The caller cancelled the work.
+    #[error("cancelled")]
+    Cancelled,
+    /// The work passed its time limit. What it finished is kept, so trying again
+    /// continues from there.
+    #[error("this took too long and was stopped; try again to continue from where it got to")]
+    TimedOut,
     /// A filesystem or network failure.
     #[error("{context}: {source}")]
     Io {
@@ -78,6 +89,8 @@ impl AtlasError {
             Self::NotFound(_) => ErrorCode::NotFound,
             Self::Git(_) => ErrorCode::GitError,
             Self::Storage(_) => ErrorCode::StorageError,
+            Self::Cancelled => ErrorCode::Cancelled,
+            Self::TimedOut => ErrorCode::TimedOut,
             Self::Io { .. } => ErrorCode::Internal,
         }
     }

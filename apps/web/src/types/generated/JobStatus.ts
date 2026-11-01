@@ -3,4 +3,4 @@
 /**
  * Lifecycle of a background job.
  */
-export type JobStatus = "queued" | "running" | "completed" | "failed";
+export type JobStatus = "queued" | "running" | "completed" | "failed" | "cancelled";

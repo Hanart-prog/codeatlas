@@ -1,13 +1,11 @@
-import { BarChart3, FileText, GitCompareArrows, LayoutDashboard, type LucideIcon, Network, Radar } from "lucide-react";
+import { BarChart3, FileText, Gauge, GitCompareArrows, LayoutDashboard, type LucideIcon, Network, Radar } from "lucide-react";
 
 export interface AppRoute {
   id: string;
   label: string;
   icon: LucideIcon;
-  /** What the page will answer, shown until it is built. */
+  /** What the page answers. */
   purpose: string;
-  /** The specification phase that delivers the page; absent once built. */
-  plannedPhase?: number;
 }
 
 export const ROUTES: readonly [AppRoute, ...AppRoute[]] = [
@@ -42,10 +40,15 @@ export const ROUTES: readonly [AppRoute, ...AppRoute[]] = [
     purpose: "Measure recommendations against later commits and baselines, with sample sizes and known biases.",
   },
   {
+    id: "benchmarks",
+    label: "Benchmarks",
+    icon: Gauge,
+    purpose: "See measured speed on generated and public repositories.",
+  },
+  {
     id: "reports",
     label: "Reports",
     icon: FileText,
     purpose: "Export results as JSON or static HTML with provenance and algorithm versions.",
-    plannedPhase: 6,
   },
 ];

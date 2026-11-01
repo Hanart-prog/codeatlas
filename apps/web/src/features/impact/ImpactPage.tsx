@@ -1,6 +1,7 @@
 import { type FormEvent, useCallback, useId, useMemo, useState } from "react";
 
 import { useCommits, useGraph, useImpact } from "@/api/queries";
+import { useDebounced } from "@/app/useDebounced";
 import type { Theme } from "@/app/theme";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import type { RepositoryEntry } from "@/types/generated/RepositoryEntry";
 import { Recommendation } from "./Recommendation";
 
 const COMMIT_CHOICES = 200;
+const SUGGESTIONS = 30;
 const FIELD = "h-8 rounded-md border bg-background px-2 text-sm";
 const LIMITATION =
   "Scores rank files to inspect. A score is a heuristic, not a probability of failure, and history shows files that changed together, not that one caused the other.";
@@ -44,6 +46,8 @@ export function ImpactPage({ repository, theme }: Props) {
   const listId = useId();
 
   const graph = useGraph(repository?.id, { ref: cutoff });
+  const typed = useDebounced(draft.trim());
+  const suggestions = useGraph(typed ? repository?.id : undefined, { ref: cutoff, search: typed, limit: SUGGESTIONS });
   const commits = useCommits(repository?.id, COMMIT_CHOICES, true);
   const impact = useImpact();
   const response = impact.data;
@@ -114,7 +118,9 @@ export function ImpactPage({ repository, theme }: Props) {
               />
             </label>
             <datalist id={listId}>
-              {graph.data?.nodes.map((node) => <option key={node.path} value={node.path} />)}
+              {(typed ? suggestions.data : graph.data)?.nodes.slice(0, SUGGESTIONS).map((node) => (
+                <option key={node.path} value={node.path} />
+              ))}
             </datalist>
             <Button type="submit" disabled={!draft.trim()}>
               Add

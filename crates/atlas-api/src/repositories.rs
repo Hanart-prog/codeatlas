@@ -3,20 +3,21 @@
 use std::path::{Path as FsPath, PathBuf};
 
 use atlas_analysis::{
-    AnalyzeOptions, DEFAULT_TIMELINE_POINTS, GraphQuery, compare as diff_commits, file_detail,
-    graph as load_graph, impact as rank_impact, open_repository, overview as load_overview,
-    timeline as load_timeline,
+    AnalyzeOptions, DEFAULT_TIMELINE_POINTS, GraphQuery, compare as diff_commits, directory_map,
+    file_detail, graph as load_graph, impact as rank_impact, open_repository,
+    overview as load_overview, render_report, report as build_report, timeline as load_timeline,
 };
 use atlas_model::{
     AnalyzeRequest, AtlasError, BacktestRequest, CommitPage, CompareRequest, CompareResponse,
-    DEFAULT_HISTORY_LIMIT, FileDetail, GraphResponse, ImpactRequest, ImpactResponse, JobResponse,
-    LatestBacktest, OpenRepositoryRequest, OverviewResponse, RepoPath, RepositoryEntry,
-    RepositoryId, TimelineResponse,
+    DEFAULT_HISTORY_LIMIT, DirectoryMap, FileDetail, GraphResponse, ImpactRequest, ImpactResponse,
+    JobResponse, LatestBacktest, OpenRepositoryRequest, OverviewResponse, RepoPath,
+    RepositoryEntry, RepositoryId, TimelineResponse,
 };
 use axum::Json;
 use axum::extract::rejection::JsonRejection;
 use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
+use axum::http::{StatusCode, header};
+use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 
 use crate::{ApiError, AppState};
@@ -24,8 +25,10 @@ use crate::{ApiError, AppState};
 const DEFAULT_PAGE_SIZE: u32 = 50;
 const MAX_PAGE_SIZE: u32 = 200;
 const DEFAULT_GRAPH_NODES: u32 = 500;
+const DEFAULT_DIRECTORY_GROUPS: u32 = 60;
+const MAX_DIRECTORY_GROUPS: u32 = 300;
 
-fn parse_id(raw: &str) -> Result<RepositoryId, ApiError> {
+pub(crate) fn parse_id(raw: &str) -> Result<RepositoryId, ApiError> {
     raw.parse()
         .map(RepositoryId)
         .map_err(|_| ApiError::invalid("repository id must be an integer"))
@@ -128,11 +131,12 @@ pub struct GraphParams {
     #[serde(rename = "ref")]
     git_ref: Option<String>,
     directory: Option<String>,
+    search: Option<String>,
     limit: Option<u32>,
     include: Option<String>,
 }
 
-/// `GET /repositories/:id/graph?ref=&directory=&limit=`
+/// `GET /repositories/:id/graph?ref=&directory=&search=&limit=`
 pub async fn graph(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -145,6 +149,7 @@ pub async fn graph(
             let query = GraphQuery {
                 git_ref: params.git_ref,
                 directory: params.directory,
+                search: params.search.filter(|term| !term.trim().is_empty()),
                 limit: params
                     .limit
                     .unwrap_or(DEFAULT_GRAPH_NODES)
@@ -155,6 +160,77 @@ pub async fn graph(
         })
         .await?;
     Ok(Json(result))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DirectoryParams {
+    #[serde(rename = "ref")]
+    git_ref: Option<String>,
+    directory: Option<String>,
+    limit: Option<u32>,
+}
+
+/// `GET /repositories/:id/graph/directories?ref=&directory=&limit=`
+pub async fn directories(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(params): Query<DirectoryParams>,
+) -> Result<Json<DirectoryMap>, ApiError> {
+    let id = parse_id(&id)?;
+    let limit = params
+        .limit
+        .unwrap_or(DEFAULT_DIRECTORY_GROUPS)
+        .clamp(1, MAX_DIRECTORY_GROUPS);
+    let result = state
+        .write(move |db, config| {
+            let repository = found(db.repository(id)?)?;
+            let directory = params.directory.unwrap_or_default();
+            directory_map(
+                db,
+                &repository,
+                params.git_ref.as_deref(),
+                &directory,
+                limit,
+                config,
+            )
+        })
+        .await?;
+    Ok(Json(result))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ReportParams {
+    format: Option<String>,
+}
+
+/// `GET /repositories/:id/report?format=json|html`. Built on request, because it
+/// holds nothing that cannot be recomputed. HTML is sent as a download, so that
+/// repository text is never rendered as a page of this origin.
+pub async fn report(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(params): Query<ReportParams>,
+) -> Result<Response, ApiError> {
+    let id = parse_id(&id)?;
+    let format = params.format.unwrap_or_else(|| "json".to_owned());
+    if format != "json" && format != "html" {
+        return Err(ApiError::invalid("format must be json or html"));
+    }
+    let document = state
+        .write(move |db, config| build_report(db, &found(db.repository(id)?)?, config))
+        .await?;
+    if format == "json" {
+        return Ok(Json(document).into_response());
+    }
+    let disposition = "attachment; filename=\"codeatlas-report.html\"";
+    Ok((
+        [
+            (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+            (header::CONTENT_DISPOSITION, disposition),
+        ],
+        render_report(&document),
+    )
+        .into_response())
 }
 
 #[derive(Debug, Deserialize)]

@@ -22,6 +22,8 @@ pub fn analyze(args: AnalyzeArgs, config: &AtlasConfig, data_dir: &Path) -> Resu
     let outcome = run_analysis(&mut database, &args.repo, &options, config)?;
     if outcome.cached {
         tracing::info!("reused the completed analysis of this commit");
+    } else {
+        tracing::info!("read {} commits from Git", outcome.commits_read);
     }
     if let Some(reason) = &outcome.graph_skipped {
         eprintln!("warning: no import graph was built: {reason}");

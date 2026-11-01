@@ -83,10 +83,10 @@ Phases 1 and 2 applied the `run_commits`, `commits`, `snapshots` and `parsed_blo
 | Table | Problem | Change |
 |---|---|---|
 | `cochange_edges` | One materialized set per cutoff is too large for a backtest with hundreds of cutoffs | Resolved in Phase 3: computed by identity from Git at each cutoff, not stored ([ADR 11](decisions/0011-compute-impact-from-the-cutoff.md)) |
-| `impact_runs`, `impact_results` | Deterministic results can be recomputed, so storage adds only a staleness risk | Not created in Phase 3. Report exports may need them in Phase 6 |
+| `impact_runs`, `impact_results` | Deterministic results can be recomputed, so storage adds only a staleness risk | Not created; reports did not need them |
 | `snapshots` | Tied to `analysis_run_id`, which blocks section 16's reuse across runs | Key by repository, commit, parser version and configuration hash |
 | New `parsed_blobs` | Section 16 caches by blob, but no table exists | Add, keyed by blob OID and parser version |
-| New `jobs`, `reports` | Sections 12 and 13 use them, with no table | Add in the phase that introduces each |
+| New `jobs`, `reports` | Sections 12 and 13 use them, with no table | Not created: jobs live in memory and reports are built on request ([ADR 17](decisions/0017-reports-are-built-on-request.md)) |
 | New `run_commits` | First-parent order is needed everywhere and must be stable | Store run, position and OID |
 | `commits` | Stores plain `author_name` next to a hashed email, and an unsalted email hash is easily reversed. No v1 feature needs either | Drop both unless the optional contributor view is built |
 
@@ -95,9 +95,9 @@ Phases 1 and 2 applied the `run_commits`, `commits`, `snapshots` and `parsed_blo
 | Issue | Change |
 |---|---|
 | `/files/:encoded_path` contradicts section 12's own warning about path routes | `GET /repositories/:id/files?path=` |
-| Jobs are cancellable, but no route cancels them | `POST /jobs/:id/cancel` |
-| Overview needs recent jobs, and the file picker needs search, but neither has a route | `GET /repositories/:id/jobs`, `GET /repositories/:id/files?query=` |
-| Reports can be downloaded but not created | `POST /repositories/:id/reports` |
+| Jobs are cancellable, but no route cancels them | Resolved in Phase 6: `POST /jobs/:id/cancel` |
+| Overview needs recent jobs, and the file picker needs search, but neither has a route | Resolved in Phase 6: `GET /repositories/:id/jobs`, and `search` on `/graph` |
+| Reports can be downloaded but not created | Resolved in Phase 6: `GET /repositories/:id/report` builds one on request |
 | The dashboard cannot list repositories it has opened | `GET /repositories` |
 | Explorer toggles co-change edges, but `/graph` did not return them | Resolved in Phase 3: `include=cochange` returns them in a separate array |
 | POST bodies | Require `application/json` and set a body size limit, which also reinforces ADR 2 |

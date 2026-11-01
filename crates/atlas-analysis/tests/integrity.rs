@@ -157,6 +157,7 @@ fn analyzing_an_older_commit_again_makes_it_current() {
         &GraphQuery {
             git_ref: None,
             directory: None,
+            search: None,
             limit: 10,
             include_cochange: false,
         },

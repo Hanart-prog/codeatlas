@@ -4,11 +4,11 @@ use std::path::Path;
 use std::time::Duration;
 
 use atlas_api::{AppState, router};
-use atlas_fixtures::generate_main_fixture;
+use atlas_fixtures::{generate_demo_fixture, generate_main_fixture};
 use atlas_model::{
-    ApiErrorBody, CommitPage, CompareResponse, ErrorCode, FileDetail, GraphResponse,
-    ImpactResponse, JobResponse, JobStatus, LatestBacktest, OverviewResponse, RepositoryEntry,
-    TimelineResponse,
+    ApiErrorBody, CommitPage, CompareResponse, DirectoryGroupKind, DirectoryMap, ErrorCode,
+    FileDetail, GraphResponse, ImpactResponse, JobKind, JobResponse, JobStatus, LatestBacktest,
+    OverviewResponse, ReportDocument, RepositoryEntry, TimelineResponse,
 };
 use axum::Router;
 use axum::body::Body;
@@ -560,6 +560,189 @@ async fn timeline_route_samples_commits_and_validates() {
         .json(Method::GET, &uri, None, StatusCode::BAD_REQUEST)
         .await;
     assert_eq!(error.error.code, ErrorCode::InvalidInput);
+}
+
+async fn analyzed(harness: &Harness, path: &Path) -> i64 {
+    let body = serde_json::json!({ "path": path }).to_string();
+    let entry: RepositoryEntry = harness
+        .json(
+            Method::POST,
+            "/repositories/open",
+            Some(&body),
+            StatusCode::OK,
+        )
+        .await;
+    let job: JobResponse = harness
+        .json(
+            Method::POST,
+            &format!("/repositories/{}/analyze", entry.id.0),
+            Some("{}"),
+            StatusCode::ACCEPTED,
+        )
+        .await;
+    assert_eq!(
+        wait_for_job(harness, job).await.status,
+        JobStatus::Completed
+    );
+    entry.id.0
+}
+
+#[tokio::test]
+async fn cancelling_is_safe_in_every_state() {
+    let directory = tempfile::tempdir().unwrap();
+    generate_demo_fixture(directory.path()).unwrap();
+    let harness = Harness::new();
+    let body = serde_json::json!({ "path": directory.path() }).to_string();
+    let entry: RepositoryEntry = harness
+        .json(
+            Method::POST,
+            "/repositories/open",
+            Some(&body),
+            StatusCode::OK,
+        )
+        .await;
+    let start = format!("/repositories/{}/analyze", entry.id.0);
+
+    // More jobs than slots, so that some are still queued when cancelled.
+    let mut jobs = Vec::new();
+    for _ in 0..6 {
+        let job: JobResponse = harness
+            .json(Method::POST, &start, Some("{}"), StatusCode::ACCEPTED)
+            .await;
+        jobs.push(job);
+    }
+    let queued = jobs.last().unwrap().id;
+    let cancelled: JobResponse = harness
+        .json(
+            Method::POST,
+            &format!("/jobs/{queued}/cancel"),
+            None,
+            StatusCode::OK,
+        )
+        .await;
+    assert_eq!(
+        cancelled.status,
+        JobStatus::Cancelled,
+        "a queued job stops at once"
+    );
+
+    for job in jobs {
+        let finished = wait_for_job(&harness, job).await;
+        assert!(
+            matches!(finished.status, JobStatus::Completed | JobStatus::Cancelled),
+            "{finished:?}"
+        );
+        // Cancelling something finished changes nothing.
+        let again: JobResponse = harness
+            .json(
+                Method::POST,
+                &format!("/jobs/{}/cancel", finished.id),
+                None,
+                StatusCode::OK,
+            )
+            .await;
+        assert_eq!(again.status, finished.status);
+    }
+
+    let listed: Vec<JobResponse> = harness
+        .json(
+            Method::GET,
+            &format!("/repositories/{}/jobs", entry.id.0),
+            None,
+            StatusCode::OK,
+        )
+        .await;
+    assert_eq!(listed.len(), 6);
+    assert!(listed.windows(2).all(|pair| pair[0].id > pair[1].id));
+    assert!(listed.iter().all(|job| job.kind == JobKind::Analysis));
+
+    let (status, _) = harness.send(Method::POST, "/jobs/999/cancel", None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _) = harness.send(Method::POST, "/jobs/abc/cancel", None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn directory_map_and_search_load_subsets() {
+    let directory = tempfile::tempdir().unwrap();
+    generate_demo_fixture(directory.path()).unwrap();
+    let harness = Harness::new();
+    let id = analyzed(&harness, directory.path()).await;
+
+    let map: DirectoryMap = harness
+        .json(
+            Method::GET,
+            &format!("/repositories/{id}/graph/directories"),
+            None,
+            StatusCode::OK,
+        )
+        .await;
+    assert_eq!(map.directory, "src");
+    assert_eq!(map.groups.len(), 6);
+    assert_eq!(map.matching_node_count, 24);
+    assert!(!map.links.is_empty());
+
+    let opened: DirectoryMap = harness
+        .json(
+            Method::GET,
+            &format!("/repositories/{id}/graph/directories?directory=src/auth&limit=2"),
+            None,
+            StatusCode::OK,
+        )
+        .await;
+    assert_eq!(opened.directory, "src/auth");
+    assert_eq!(opened.groups.len(), 1);
+    assert_eq!(opened.groups[0].kind, DirectoryGroupKind::LooseFiles);
+
+    let found: GraphResponse = harness
+        .json(
+            Method::GET,
+            &format!("/repositories/{id}/graph?search=INVOICE&limit=5"),
+            None,
+            StatusCode::OK,
+        )
+        .await;
+    assert_eq!(found.matching_node_count, 1);
+    assert_eq!(found.nodes[0].path.as_str(), "src/billing/invoice.ts");
+}
+
+#[tokio::test]
+async fn report_route_sends_data_and_a_download() {
+    let directory = tempfile::tempdir().unwrap();
+    generate_main_fixture(directory.path()).unwrap();
+    let harness = Harness::new();
+    let id = analyzed(&harness, directory.path()).await;
+
+    let document: ReportDocument = harness
+        .json(
+            Method::GET,
+            &format!("/repositories/{id}/report"),
+            None,
+            StatusCode::OK,
+        )
+        .await;
+    assert_eq!(document.history.commit_count, 13);
+
+    let request = Request::builder()
+        .uri(format!("/api/v1/repositories/{id}/report?format=html"))
+        .header(header::HOST, "127.0.0.1:4317")
+        .body(Body::empty())
+        .unwrap();
+    let response = harness.app.clone().oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let disposition = response.headers()[header::CONTENT_DISPOSITION]
+        .to_str()
+        .unwrap();
+    assert!(disposition.starts_with("attachment"), "{disposition}");
+
+    let (status, _) = harness
+        .send(
+            Method::GET,
+            &format!("/repositories/{id}/report?format=pdf"),
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
 async fn wait_for_job(harness: &Harness, mut job: JobResponse) -> JobResponse {

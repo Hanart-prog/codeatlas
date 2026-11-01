@@ -55,7 +55,9 @@ async fn listen(address: SocketAddr, state: AppState) -> Result<(), AtlasError> 
     let listener = TcpListener::bind(address)
         .await
         .map_err(|source| AtlasError::Io {
-            context: format!("could not bind {address}"),
+            context: format!(
+                "could not bind {address}; is another server using it? Choose another with --port"
+            ),
             source,
         })?;
     let local = listener.local_addr().map_err(|source| AtlasError::Io {
@@ -70,6 +72,7 @@ async fn listen(address: SocketAddr, state: AppState) -> Result<(), AtlasError> 
         source,
     })?;
     tracing::info!("listening on {url}");
+    eprintln!("Open {url}");
 
     atlas_api::serve(listener, state, shutdown_signal())
         .await

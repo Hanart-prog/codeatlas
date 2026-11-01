@@ -91,7 +91,7 @@ impl ExclusionReason {
 }
 
 /// A commit on the indexed first-parent chain.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommitRecord {
     /// Commit id.
     pub oid: Oid,
@@ -104,7 +104,7 @@ pub struct CommitRecord {
 }
 
 /// One changed file within a commit, diffed against the commit's first parent.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FileChange {
     /// Path before the commit, absent for additions.
     pub old_path: Option<RepoPath>,
@@ -121,7 +121,7 @@ pub struct FileChange {
 }
 
 /// The changes of one commit.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommitChanges {
     /// The commit.
     pub commit: CommitRecord,

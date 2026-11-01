@@ -1,13 +1,13 @@
 //! Read models over stored snapshots, shared by the CLI and the API.
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 
 use atlas_git::GitRepository;
 use atlas_graph::DependencyGraph;
 use atlas_model::{
-    AtlasConfig, AtlasError, CoChangeEdge, FileDetail, GraphEdge, GraphNode, GraphResponse, Oid,
-    RepoPath, RepositoryEntry,
+    AtlasConfig, AtlasError, CoChangeEdge, DirectoryGroup, DirectoryGroupKind, DirectoryLink,
+    DirectoryMap, FileDetail, GraphEdge, GraphNode, GraphResponse, Oid, RepoPath, RepositoryEntry,
 };
 use atlas_storage::{Database, SnapshotId};
 
@@ -23,6 +23,8 @@ pub struct GraphQuery {
     pub git_ref: Option<String>,
     /// Only files under this directory.
     pub directory: Option<String>,
+    /// Only files whose path contains this, ignoring case.
+    pub search: Option<String>,
     /// Most connected files to return.
     pub limit: u32,
     /// Also return co-change pairs among the returned files.
@@ -113,6 +115,7 @@ pub fn graph(
     let architecture = snapshot.architecture;
     let total_node_count = architecture.nodes.len() as u32;
     let total_edge_count = architecture.edges.len() as u32;
+    let search = query.search.as_deref().map(str::to_lowercase);
 
     let mut nodes: Vec<GraphNode> = architecture
         .nodes
@@ -122,6 +125,9 @@ pub fn graph(
                 .directory
                 .as_deref()
                 .is_none_or(|directory| in_directory(&node.path, directory))
+                && search
+                    .as_deref()
+                    .is_none_or(|term| node.path.as_str().to_lowercase().contains(term))
         })
         .collect();
     let matching_node_count = nodes.len() as u32;
@@ -134,7 +140,7 @@ pub fn graph(
 
     let kept: HashSet<&RepoPath> = nodes.iter().map(|node| &node.path).collect();
     let cochange = if query.include_cochange {
-        cochange_edges(repository, &snapshot.commit, &kept, config)?
+        cochange_edges(database, repository, &snapshot.commit, &kept, config)?
     } else {
         Vec::new()
     };
@@ -157,15 +163,159 @@ pub fn graph(
     })
 }
 
+/// The group a file falls in on a map of `directory`: the next path segment below
+/// it, or `None` for a file directly in it.
+fn group_of<'a>(path: &'a str, directory: &str) -> Option<&'a str> {
+    let rest = match directory {
+        "" => path,
+        directory => &path[directory.len() + 1..],
+    };
+    let end = rest.find('/')?;
+    Some(&path[..path.len() - rest.len() + end])
+}
+
+/// The import graph at a commit, grouped by directory, so that a graph too large
+/// to draw still has a readable shape. Larger groups are opened by asking for
+/// their directory.
+pub fn directory_map(
+    database: &Database,
+    repository: &RepositoryEntry,
+    git_ref: Option<&str>,
+    directory: &str,
+    limit: u32,
+    config: &AtlasConfig,
+) -> Result<DirectoryMap, AtlasError> {
+    let snapshot = load(database, repository, git_ref, config)?;
+    let architecture = snapshot.architecture;
+    Ok(group_by_directory(
+        snapshot.commit,
+        &architecture.nodes,
+        &architecture.edges,
+        directory,
+        limit,
+    ))
+}
+
+/// A group's path, and whether it stands for loose files rather than a directory
+/// of the same name.
+type GroupKey<'a> = (&'a str, bool);
+
+fn group_by_directory(
+    commit: Oid,
+    nodes: &[GraphNode],
+    edges: &[GraphEdge],
+    directory: &str,
+    limit: u32,
+) -> DirectoryMap {
+    let mut root = directory.trim_matches('/').to_owned();
+    let under_root: Vec<&GraphNode> = nodes
+        .iter()
+        .filter(|node| in_directory(&node.path, &root))
+        .collect();
+
+    // A directory holding one subdirectory has nothing to show, so go straight
+    // to the first level where the files divide.
+    loop {
+        let mut groups = under_root
+            .iter()
+            .map(|node| group_of(node.path.as_str(), &root));
+        match groups.next() {
+            Some(Some(only)) if groups.all(|group| group == Some(only)) => root = only.to_owned(),
+            _ => break,
+        }
+    }
+
+    let mut groups: BTreeMap<GroupKey<'_>, DirectoryGroup> = BTreeMap::new();
+    let mut group_key: HashMap<&RepoPath, GroupKey<'_>> = HashMap::new();
+    for node in &under_root {
+        let group = group_of(node.path.as_str(), &root);
+        let key = (group.unwrap_or(&root), group.is_none());
+        group_key.insert(&node.path, key);
+        let entry = groups.entry(key).or_insert_with(|| DirectoryGroup {
+            path: key.0.to_owned(),
+            kind: match group {
+                Some(_) => DirectoryGroupKind::Directory,
+                None => DirectoryGroupKind::LooseFiles,
+            },
+            file_count: 0,
+            cyclic_file_count: 0,
+            internal_import_count: 0,
+        });
+        entry.file_count += 1;
+        entry.cyclic_file_count += u32::from(node.in_cycle);
+    }
+
+    let mut counts: BTreeMap<(GroupKey<'_>, GroupKey<'_>), u32> = BTreeMap::new();
+    for edge in edges {
+        let (Some(&source), Some(&target)) =
+            (group_key.get(&edge.source), group_key.get(&edge.target))
+        else {
+            continue;
+        };
+        if source == target {
+            if let Some(group) = groups.get_mut(&source) {
+                group.internal_import_count += 1;
+            }
+        } else {
+            *counts.entry((source, target)).or_default() += 1;
+        }
+    }
+
+    let mut ordered: Vec<(GroupKey<'_>, DirectoryGroup)> = groups.into_iter().collect();
+    ordered.sort_by(|a, b| {
+        b.1.file_count
+            .cmp(&a.1.file_count)
+            .then_with(|| a.0.cmp(&b.0))
+    });
+    let hidden = ordered.split_off(ordered.len().min(limit as usize));
+    let position: HashMap<GroupKey<'_>, u32> = ordered
+        .iter()
+        .enumerate()
+        .map(|(index, (key, _))| (*key, index as u32))
+        .collect();
+
+    let mut links: Vec<DirectoryLink> = counts
+        .into_iter()
+        .filter_map(|((source, target), import_count)| {
+            Some(DirectoryLink {
+                source: *position.get(&source)?,
+                target: *position.get(&target)?,
+                import_count,
+            })
+        })
+        .collect();
+    links.sort_by_key(|link| (link.source, link.target));
+
+    DirectoryMap {
+        commit,
+        hidden_group_count: hidden.len() as u32,
+        hidden_file_count: hidden.iter().map(|(_, group)| group.file_count).sum(),
+        groups: ordered.into_iter().map(|(_, group)| group).collect(),
+        links,
+        matching_node_count: under_root.len() as u32,
+        total_node_count: nodes.len() as u32,
+        total_edge_count: edges.len() as u32,
+        directory: root,
+    }
+}
+
 /// Pairs meeting minimum support as of `commit`, among `kept` files.
 fn cochange_edges(
+    database: &Database,
     repository: &RepositoryEntry,
     commit: &Oid,
     kept: &HashSet<&RepoPath>,
     config: &AtlasConfig,
 ) -> Result<Vec<CoChangeEdge>, AtlasError> {
     let git = GitRepository::open(Path::new(&repository.path))?;
-    let history = load_scoped_history(&git, commit, DEFAULT_HISTORY_WINDOW, config)?;
+    let history = load_scoped_history(
+        database,
+        &git,
+        repository.id,
+        commit,
+        DEFAULT_HISTORY_WINDOW,
+        config,
+    )?;
     let alive = history.alive_paths();
 
     let mut edges = Vec::new();
@@ -253,7 +403,151 @@ pub fn file_detail(
 
 #[cfg(test)]
 mod tests {
+    use atlas_model::{
+        DependencyEdgeType, DirectoryGroupKind, GraphEdge, GraphNode, Language, ParseStatus,
+        ResolutionKind,
+    };
+    use proptest::prelude::*;
+
     use super::in_directory;
+
+    fn group_by_directory(
+        nodes: &[GraphNode],
+        edges: &[GraphEdge],
+        directory: &str,
+        limit: u32,
+    ) -> atlas_model::DirectoryMap {
+        let commit = "a".repeat(40).parse().unwrap();
+        super::group_by_directory(commit, nodes, edges, directory, limit)
+    }
+
+    fn node(path: &str, in_cycle: bool) -> GraphNode {
+        GraphNode {
+            path: path.parse().unwrap(),
+            language: Language::Typescript,
+            loc: 1,
+            parse_status: ParseStatus::Parsed,
+            in_degree: 0,
+            out_degree: 0,
+            in_cycle,
+        }
+    }
+
+    fn edge(source: &str, target: &str) -> GraphEdge {
+        GraphEdge {
+            source: source.parse().unwrap(),
+            target: target.parse().unwrap(),
+            edge_type: DependencyEdgeType::StaticImport,
+            resolution: ResolutionKind::Relative,
+            specifier: "./x".to_owned(),
+            line: 1,
+        }
+    }
+
+    #[test]
+    fn groups_count_files_cycles_and_imports() {
+        let nodes = [
+            node("src/a/one.ts", true),
+            node("src/a/two.ts", false),
+            node("src/b/deep/three.ts", false),
+            node("src/index.ts", false),
+        ];
+        let edges = [
+            edge("src/a/one.ts", "src/a/two.ts"),
+            edge("src/a/one.ts", "src/b/deep/three.ts"),
+            edge("src/a/two.ts", "src/b/deep/three.ts"),
+            edge("src/index.ts", "src/a/one.ts"),
+        ];
+        let map = group_by_directory(&nodes, &edges, "", 10);
+        assert_eq!(map.directory, "src");
+        let paths: Vec<_> = map.groups.iter().map(|group| group.path.as_str()).collect();
+        assert_eq!(paths, ["src/a", "src", "src/b"]);
+        assert_eq!(map.groups[0].file_count, 2);
+        assert_eq!(map.groups[0].cyclic_file_count, 1);
+        assert_eq!(map.groups[0].internal_import_count, 1);
+        assert_eq!(map.groups[1].kind, DirectoryGroupKind::LooseFiles);
+        assert_eq!(map.links.len(), 2);
+        assert_eq!(
+            (
+                map.links[0].source,
+                map.links[0].target,
+                map.links[0].import_count
+            ),
+            (0, 2, 2)
+        );
+    }
+
+    #[test]
+    fn a_directory_can_be_opened_and_keeps_only_its_own_imports() {
+        let nodes = [
+            node("src/a/one.ts", false),
+            node("src/a/x/two.ts", false),
+            node("src/b/three.ts", false),
+        ];
+        let edges = [
+            edge("src/a/one.ts", "src/a/x/two.ts"),
+            edge("src/a/one.ts", "src/b/three.ts"),
+        ];
+        let map = group_by_directory(&nodes, &edges, "src/a/", 10);
+        assert_eq!(map.directory, "src/a");
+        assert_eq!(map.matching_node_count, 2);
+        assert_eq!(map.groups.len(), 2);
+        assert_eq!(map.links.len(), 1);
+        assert_eq!(map.links[0].import_count, 1);
+    }
+
+    #[test]
+    fn the_limit_keeps_the_largest_groups_and_says_what_it_hid() {
+        let nodes = [
+            node("a/1.ts", false),
+            node("a/2.ts", false),
+            node("b/1.ts", false),
+            node("c/1.ts", false),
+        ];
+        let edges = [edge("a/1.ts", "c/1.ts")];
+        let map = group_by_directory(&nodes, &edges, "", 2);
+        assert_eq!(map.groups.len(), 2);
+        assert_eq!(map.hidden_group_count, 1);
+        assert_eq!(map.hidden_file_count, 1);
+        assert!(map.links.is_empty());
+    }
+
+    #[test]
+    fn a_missing_directory_is_empty_rather_than_an_error() {
+        let map = group_by_directory(&[node("a/1.ts", false)], &[], "nowhere", 10);
+        assert!(map.groups.is_empty());
+        assert_eq!(map.matching_node_count, 0);
+        assert_eq!(map.total_node_count, 1);
+    }
+
+    proptest! {
+        /// Every file lands in exactly one group, and every import between files
+        /// under the map is counted exactly once.
+        #[test]
+        fn grouping_loses_nothing(
+            files in proptest::collection::btree_set("[ab]/[cd]/[ef]\\.ts|[ab]/[ef]\\.ts|[ef]\\.ts", 1..12),
+            picks in proptest::collection::vec((0usize..12, 0usize..12), 0..20),
+        ) {
+            let files: Vec<String> = files.into_iter().collect();
+            let nodes: Vec<GraphNode> = files.iter().map(|file| node(file, false)).collect();
+            let mut pairs: Vec<(usize, usize)> = picks
+                .into_iter()
+                .map(|(a, b)| (a % files.len(), b % files.len()))
+                .filter(|(a, b)| a != b)
+                .collect();
+            pairs.sort_unstable();
+            pairs.dedup();
+            let edges: Vec<GraphEdge> =
+                pairs.iter().map(|&(a, b)| edge(&files[a], &files[b])).collect();
+
+            let map = group_by_directory(&nodes, &edges, "", 100);
+            let files_seen: u32 = map.groups.iter().map(|group| group.file_count).sum();
+            let inside: u32 = map.groups.iter().map(|group| group.internal_import_count).sum();
+            let across: u32 = map.links.iter().map(|link| link.import_count).sum();
+            prop_assert_eq!(files_seen as usize, nodes.len());
+            prop_assert_eq!((inside + across) as usize, edges.len());
+        }
+    }
 
     #[test]
     fn directories_match_whole_segments() {

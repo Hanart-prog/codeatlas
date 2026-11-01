@@ -4,7 +4,6 @@ import { lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OverviewPage } from "@/features/overview/OverviewPage";
-import { PlannedPage } from "@/features/planned/PlannedPage";
 import { cn } from "@/lib/utils";
 
 import { ApiOfflineBanner, ApiStatus } from "./ApiStatus";
@@ -27,6 +26,14 @@ const TimeMachinePage = lazy(() =>
 
 const BacktestPage = lazy(() =>
   import("@/features/backtest/BacktestPage").then((module) => ({ default: module.BacktestPage })),
+);
+
+const BenchmarksPage = lazy(() =>
+  import("@/features/benchmarks/BenchmarksPage").then((module) => ({ default: module.BenchmarksPage })),
+);
+
+const ReportsPage = lazy(() =>
+  import("@/features/reports/ReportsPage").then((module) => ({ default: module.ReportsPage })),
 );
 
 export function App() {
@@ -70,9 +77,6 @@ export function App() {
               >
                 <Icon aria-hidden className="size-4 shrink-0" />
                 <span className="flex-1">{item.label}</span>
-                {item.plannedPhase !== undefined && (
-                  <span className="font-mono text-[10px] text-muted-foreground">P{item.plannedPhase}</span>
-                )}
               </a>
             );
           })}
@@ -100,10 +104,14 @@ export function App() {
           </div>
         </header>
         <ApiOfflineBanner />
+        {selection.repository?.path.endsWith("/demo/product") && (
+          <p role="note" className="border-b bg-muted px-6 py-1.5 text-xs text-muted-foreground">
+            Generated sample repository. Its history was built to show how the tool works, so its results, including
+            backtests, say nothing about real projects.
+          </p>
+        )}
         <main id="main" tabIndex={-1} className="flex-1 overflow-y-auto p-6 outline-none">
-          {route.plannedPhase !== undefined ? (
-            <PlannedPage route={route} />
-          ) : route.id === "explorer" ? (
+          {route.id === "explorer" ? (
             <Suspense fallback={<Skeleton aria-label="Loading explorer" className="h-[520px] w-full" />}>
               <ExplorerPage repository={selection.repository} theme={theme} />
             </Suspense>
@@ -118,6 +126,14 @@ export function App() {
           ) : route.id === "backtesting" ? (
             <Suspense fallback={<Skeleton aria-label="Loading backtesting" className="h-[520px] w-full" />}>
               <BacktestPage repository={selection.repository} theme={theme} />
+            </Suspense>
+          ) : route.id === "benchmarks" ? (
+            <Suspense fallback={<Skeleton aria-label="Loading benchmarks" className="h-48 w-full" />}>
+              <BenchmarksPage />
+            </Suspense>
+          ) : route.id === "reports" ? (
+            <Suspense fallback={<Skeleton aria-label="Loading reports" className="h-48 w-full" />}>
+              <ReportsPage repository={selection.repository} />
             </Suspense>
           ) : (
             <OverviewPage selection={selection} />

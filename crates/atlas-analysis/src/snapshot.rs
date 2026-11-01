@@ -8,8 +8,8 @@ use std::collections::{HashMap, HashSet};
 use atlas_git::{ExclusionRules, GitRepository, TreeFile, TreeListing};
 use atlas_model::{
     AtlasConfig, AtlasError, DependencyEdgeType, GraphEdge, Language, Oid, PARSER_VERSION,
-    ParseStatus, ParsedFile, ParserCoverage, RepoPath, RepositoryEntry, SnapshotData, SnapshotFile,
-    TsconfigStatus, UnresolvedCount, UnresolvedImport, UnresolvedReason,
+    ParseStatus, ParsedFile, ParserCoverage, ProgressUnit, RepoPath, RepositoryEntry, SnapshotData,
+    SnapshotFile, TsconfigStatus, UnresolvedCount, UnresolvedImport, UnresolvedReason,
 };
 use atlas_parser::{ParsedTsconfig, Resolution, Resolver, parse_source, parse_tsconfig};
 use atlas_storage::{Database, SnapshotId, SnapshotKey};
@@ -96,7 +96,11 @@ fn build(
     let mut coverage_counts = Counts::default();
     let mut indexed_bytes = 0u64;
 
-    for (file, language) in sources {
+    let total = sources.len() as u32;
+    for (index, (file, language)) in sources.into_iter().enumerate() {
+        database
+            .work()
+            .step(index as u32, total, ProgressUnit::Files)?;
         let parsed = load_parsed(database, git, file, language, config, &mut indexed_bytes)?;
         coverage_counts.record(&parsed);
 

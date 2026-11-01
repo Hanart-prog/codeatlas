@@ -342,3 +342,187 @@ pub fn generate_main_fixture(directory: &Path) -> Result<Oid, git2::Error> {
 
     Ok(repo.head.expect("the fixture has commits"))
 }
+
+/// A small deterministic generator, so that fixtures need no dependency.
+struct Sequence(u64);
+
+impl Sequence {
+    fn below(&mut self, bound: usize) -> usize {
+        self.0 = self
+            .0
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1);
+        ((self.0 >> 33) % bound as u64) as usize
+    }
+}
+
+/// Modules of the demo repository, each with files that tend to change together.
+const DEMO_MODULES: [(&str, [&str; 4]); 6] = [
+    ("auth", ["session", "token", "password", "policy"]),
+    ("billing", ["invoice", "plan", "tax", "refund"]),
+    ("users", ["account", "profile", "invite", "roles"]),
+    ("api", ["routes", "errors", "limits", "schema"]),
+    ("search", ["index", "query", "ranking", "filters"]),
+    ("notify", ["email", "digest", "webhook", "templates"]),
+];
+
+/// An invented product's history, big enough for every dashboard page to have
+/// something to show. Most commits change files of one module, some cross modules,
+/// and a cycle, a rename and a new module appear along the way. Nothing here
+/// is a claim about real projects: it exists to demonstrate the tool.
+pub fn generate_demo_fixture(directory: &Path) -> Result<Oid, git2::Error> {
+    const COMMITS: usize = 180;
+    let path = |module: &str, file: &str| format!("src/{module}/{file}.ts");
+    let mut repo = FixtureRepo::init(directory)?;
+    let mut sequence = Sequence(42);
+
+    let mut root = repo.change()?.write("README.md", "# Demo product\n");
+    for (index, (module, files)) in DEMO_MODULES[..5].iter().enumerate() {
+        for (offset, file) in files.iter().enumerate() {
+            let mut content = exports(file, 4);
+            if offset > 0 {
+                content.insert_str(0, &format!("import {{ {0}0 }} from './{0}';\n", files[0]));
+            }
+            // Each module's main file builds on the one before it.
+            if index > 0 && offset == 0 {
+                let (previous, others) = DEMO_MODULES[index - 1];
+                content.insert_str(
+                    0,
+                    &format!("import {{ {0}0 }} from '../{previous}/{0}';\n", others[0]),
+                );
+            }
+            root = root.write(path(module, file), content);
+        }
+    }
+    root.commit("Create the product")?;
+
+    let mut live: Vec<(String, Vec<String>)> = DEMO_MODULES[..5]
+        .iter()
+        .map(|(module, files)| (module.to_string(), files.map(str::to_owned).to_vec()))
+        .collect();
+
+    for number in 1..COMMITS {
+        match number {
+            45 => {
+                let mut change = repo.change()?;
+                let (module, files) = DEMO_MODULES[5];
+                for file in files {
+                    let import = "import { routes0 } from '../api/routes';\n";
+                    change =
+                        change.write(path(module, file), format!("{import}{}", exports(file, 3)));
+                }
+                change.commit("Add notifications")?;
+                live.push((module.to_owned(), files.map(str::to_owned).to_vec()));
+                continue;
+            }
+            80 => {
+                repo.change()?
+                    .append(
+                        &path("auth", "token"),
+                        "import { session0 } from './session';\n",
+                    )
+                    .append(
+                        &path("auth", "session"),
+                        "import { token0 } from './token';\n",
+                    )
+                    .commit("Let tokens read session state")?;
+                continue;
+            }
+            120 => {
+                repo.change()?
+                    .replace(
+                        &path("auth", "token"),
+                        "import { session0 } from './session';\n",
+                        "",
+                    )
+                    .commit("Stop tokens reading session state")?;
+                continue;
+            }
+            100 => {
+                repo.change()?
+                    .rename(&path("users", "profile"), &path("users", "details"))
+                    .commit("Rename profile to details")?;
+                live[2].1[1] = "details".to_owned();
+                continue;
+            }
+            _ => {}
+        }
+
+        let module = sequence.below(live.len());
+        let touched = 2 + sequence.below(2);
+        let start = sequence.below(4);
+        let mut change = repo.change()?;
+        let mut names = Vec::new();
+        for offset in 0..touched {
+            let file = &live[module].1[(start + offset) % 4];
+            let line = format!("export const change{number}x{offset} = {number};\n");
+            change = change.append(&path(&live[module].0, file), &line);
+            names.push(file.clone());
+        }
+        // Auth and billing move together often, across modules.
+        if module == 0 && sequence.below(2) == 0 {
+            let line = format!("export const follow{number} = {number};\n");
+            change = change.append(&path("billing", "invoice"), &line);
+        }
+        change.commit(&format!(
+            "Update {} in {}",
+            names.join(" and "),
+            live[module].0
+        ))?;
+    }
+    Ok(repo.head.expect("the fixture has commits"))
+}
+
+/// A repository of `files` source files in `directories` of 40 and `commits`
+/// further small commits, to measure scale. Its shape is arbitrary.
+pub fn generate_scale_fixture(
+    directory: &Path,
+    files: usize,
+    commits: usize,
+) -> Result<Oid, git2::Error> {
+    const PER_DIRECTORY: usize = 40;
+    const DIRECTORIES_PER_PACKAGE: usize = 25;
+    let path = |index: usize| {
+        let folder = index / PER_DIRECTORY;
+        format!(
+            "packages/pkg{:03}/src/mod{:03}/file{index}.ts",
+            folder / DIRECTORIES_PER_PACKAGE,
+            folder
+        )
+    };
+    let relative = |index: usize| {
+        format!(
+            "../../../pkg{:03}/src/mod{:03}/file{index}",
+            index / PER_DIRECTORY / DIRECTORIES_PER_PACKAGE,
+            index / PER_DIRECTORY
+        )
+    };
+
+    let mut repo = FixtureRepo::init(directory)?;
+    let mut sequence = Sequence(7);
+    let mut root = repo.change()?;
+    for index in 0..files {
+        let mut content = String::new();
+        for _ in 0..3.min(index) {
+            let target = sequence.below(index);
+            content.push_str(&format!(
+                "import {{ v{target} }} from '{}';\n",
+                relative(target)
+            ));
+        }
+        content.push_str(&format!("export const v{index} = {index};\n"));
+        root = root.write(path(index), content);
+    }
+    root.commit("Create the packages")?;
+
+    for number in 0..commits {
+        let mut change = repo.change()?;
+        let first = sequence.below(files);
+        for offset in 0..3 {
+            let line = format!("export const change{number}x{offset} = {number};\n");
+            change = change.append(&path((first + offset) % files), &line);
+        }
+        change.commit(&format!("Change {number}"))?;
+    }
+    Ok(repo.head.expect("the fixture has commits"))
+}

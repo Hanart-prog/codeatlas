@@ -164,6 +164,18 @@ pub enum JobStatus {
     Completed,
     /// Finished with an error.
     Failed,
+    /// Stopped at the caller's request.
+    Cancelled,
+}
+
+/// What a background job does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum JobKind {
+    /// Indexes a repository.
+    Analysis,
+    /// Evaluates recommendations on later commits.
+    Backtest,
 }
 
 /// Body of `GET /api/v1/jobs/:id`.
@@ -173,6 +185,8 @@ pub struct JobResponse {
     pub id: u32,
     /// Repository the job belongs to.
     pub repository_id: RepositoryId,
+    /// What it does.
+    pub kind: JobKind,
     /// Current state.
     pub status: JobStatus,
     /// Failure description, when `status` is `failed`.
@@ -181,13 +195,27 @@ pub struct JobResponse {
     pub progress: Option<JobProgress>,
 }
 
-/// Steps finished of a job's total.
+/// What a job is counting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ProgressUnit {
+    /// Commits being read from Git.
+    Commits,
+    /// Source files being parsed for the import graph.
+    Files,
+    /// Backtest cases being evaluated.
+    Cases,
+}
+
+/// Steps finished of a stage's total.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct JobProgress {
     /// Steps finished.
     pub done: u32,
-    /// All steps.
+    /// All steps of this stage.
     pub total: u32,
+    /// What the steps are.
+    pub unit: ProgressUnit,
 }
 
 /// One commit, as shown in summaries.

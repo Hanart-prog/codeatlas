@@ -14,6 +14,7 @@ use atlas_model::{
 };
 use atlas_storage::Database;
 
+use crate::commits::load_commits;
 use crate::graph_view::{Architecture, load};
 use crate::lineage::assign_identities;
 
@@ -48,11 +49,16 @@ pub fn compare(
 
     let rules = ExclusionRules::from_config(&config.analysis, &config.limits)?;
     let relation = relation(&git, &base_oid, &target_oid)?;
+    database.work().check()?;
     let direct = git.renames_between(&base_oid, &target_oid, &rules)?;
     let history = match relation {
-        CommitRelation::Forward => history_renames(&git, &base_oid, &target_oid, &rules)?,
-        CommitRelation::Backward => history_renames(&git, &target_oid, &base_oid, &rules)?
-            .map(|pairs| pairs.into_iter().map(|(from, to)| (to, from)).collect()),
+        CommitRelation::Forward => {
+            history_renames(database, &git, repository, &base_oid, &target_oid, config)?
+        }
+        CommitRelation::Backward => {
+            history_renames(database, &git, repository, &target_oid, &base_oid, config)?
+                .map(|pairs| pairs.into_iter().map(|(from, to)| (to, from)).collect())
+        }
         CommitRelation::Same | CommitRelation::Diverged => Some(Vec::new()),
     };
     let unwalked = history.is_none();
@@ -124,19 +130,25 @@ pub fn compare(
 /// Renames made step by step along the first-parent chain from `earlier` to
 /// `later`, or `None` if that chain does not connect them within the walk limit.
 fn history_renames(
+    database: &Database,
     git: &GitRepository,
+    repository: &RepositoryEntry,
     earlier: &Oid,
     later: &Oid,
-    rules: &ExclusionRules,
+    config: &AtlasConfig,
 ) -> Result<Option<Vec<(RepoPath, RepoPath)>>, AtlasError> {
     let walk = git.first_parent_history(later, MAX_RENAME_WALK + 1)?;
     let Some(start) = walk.oids.iter().position(|oid| oid == earlier) else {
         return Ok(None);
     };
-    let commits = walk.oids[start + 1..]
-        .iter()
-        .map(|oid| git.commit_changes(oid, rules))
-        .collect::<Result<Vec<_>, _>>()?;
+    let commits = load_commits(
+        database,
+        git,
+        repository.id,
+        &walk.oids[start + 1..],
+        config,
+    )?
+    .commits;
     let (identities, changes) = assign_identities(&commits);
 
     // A file added after `earlier` is not the file that had its path then, even

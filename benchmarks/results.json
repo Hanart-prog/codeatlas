@@ -1,0 +1,322 @@
+{
+  "tool": "codeatlas 0.1.0",
+  "machine": {
+    "cpu": "Apple M3 Pro",
+    "logical_cpus": 12,
+    "memory_gib": 36,
+    "os": "Darwin 23.2.0 arm64"
+  },
+  "repetitions": 5,
+  "subjects": [
+    {
+      "name": "generated demo",
+      "license": "generated",
+      "commit": "73597ad633fb81f312b0f5b54c02d57d734c1bff",
+      "first_parent_commits": 180,
+      "ts_files": 24,
+      "ts_bytes": 17362,
+      "impact_file": "src/billing/invoice.ts",
+      "results": {
+        "cold": {
+          "median_seconds": 0.092,
+          "min_seconds": 0.088,
+          "max_seconds": 0.102,
+          "peak_rss_mib": 10.5,
+          "repetitions": 5
+        },
+        "warm": {
+          "median_seconds": 0.005,
+          "min_seconds": 0.005,
+          "max_seconds": 0.008,
+          "peak_rss_mib": 7.1,
+          "repetitions": 5
+        },
+        "new_commits": {
+          "median_seconds": 0.028,
+          "min_seconds": 0.027,
+          "max_seconds": 0.03,
+          "peak_rss_mib": 9.8,
+          "repetitions": 5
+        },
+        "full_reindex": {
+          "median_seconds": 0.088,
+          "min_seconds": 0.087,
+          "max_seconds": 0.096,
+          "peak_rss_mib": 10.2,
+          "repetitions": 5
+        },
+        "graph": {
+          "median_seconds": 0.005,
+          "min_seconds": 0.005,
+          "max_seconds": 0.005,
+          "peak_rss_mib": 7.0,
+          "repetitions": 5
+        },
+        "impact": {
+          "median_seconds": 0.01,
+          "min_seconds": 0.01,
+          "max_seconds": 0.013,
+          "peak_rss_mib": 8.2,
+          "repetitions": 5
+        },
+        "backtest": {
+          "median_seconds": 0.139,
+          "min_seconds": 0.132,
+          "max_seconds": 0.147,
+          "peak_rss_mib": 12.2,
+          "repetitions": 5
+        },
+        "database_mib": 0.5,
+        "new_commit_count": 20
+      }
+    },
+    {
+      "name": "generated 5,000 files, 300 commits",
+      "license": "generated",
+      "commit": "5f7e61c99cef395fe0841ef81454d80911b419a6",
+      "first_parent_commits": 301,
+      "ts_files": 5000,
+      "ts_bytes": 1056548,
+      "impact_file": "packages/pkg000/src/mod024/file985.ts",
+      "results": {
+        "cold": {
+          "median_seconds": 1.182,
+          "min_seconds": 1.155,
+          "max_seconds": 1.246,
+          "peak_rss_mib": 38.0,
+          "repetitions": 5
+        },
+        "warm": {
+          "median_seconds": 0.01,
+          "min_seconds": 0.01,
+          "max_seconds": 0.01,
+          "peak_rss_mib": 10.5,
+          "repetitions": 5
+        },
+        "new_commits": {
+          "median_seconds": 0.274,
+          "min_seconds": 0.266,
+          "max_seconds": 0.283,
+          "peak_rss_mib": 32.3,
+          "repetitions": 5
+        },
+        "full_reindex": {
+          "median_seconds": 1.158,
+          "min_seconds": 1.154,
+          "max_seconds": 1.269,
+          "peak_rss_mib": 37.0,
+          "repetitions": 5
+        },
+        "graph": {
+          "median_seconds": 0.024,
+          "min_seconds": 0.024,
+          "max_seconds": 0.024,
+          "peak_rss_mib": 13.9,
+          "repetitions": 5
+        },
+        "impact": {
+          "median_seconds": 0.125,
+          "min_seconds": 0.124,
+          "max_seconds": 0.133,
+          "peak_rss_mib": 15.5,
+          "repetitions": 5
+        },
+        "backtest": {
+          "median_seconds": 10.089,
+          "min_seconds": 9.999,
+          "max_seconds": 10.878,
+          "peak_rss_mib": 127.5,
+          "repetitions": 5
+        },
+        "database_mib": 10.2,
+        "new_commit_count": 20
+      }
+    },
+    {
+      "name": "sindresorhus/ky",
+      "license": "MIT",
+      "commit": "3541888878c4d303a8bc2ad61815f4e048f55a5d",
+      "first_parent_commits": 592,
+      "ts_files": 98,
+      "ts_bytes": 1083178,
+      "impact_file": "source/core/Ky.ts",
+      "results": {
+        "cold": {
+          "median_seconds": 0.429,
+          "min_seconds": 0.421,
+          "max_seconds": 0.438,
+          "peak_rss_mib": 53.2,
+          "repetitions": 5
+        },
+        "warm": {
+          "median_seconds": 0.006,
+          "min_seconds": 0.006,
+          "max_seconds": 0.006,
+          "peak_rss_mib": 7.3,
+          "repetitions": 5
+        },
+        "new_commits": {
+          "median_seconds": 0.172,
+          "min_seconds": 0.168,
+          "max_seconds": 0.179,
+          "peak_rss_mib": 34.2,
+          "repetitions": 5
+        },
+        "full_reindex": {
+          "median_seconds": 0.425,
+          "min_seconds": 0.421,
+          "max_seconds": 0.446,
+          "peak_rss_mib": 52.0,
+          "repetitions": 5
+        },
+        "graph": {
+          "median_seconds": 0.006,
+          "min_seconds": 0.006,
+          "max_seconds": 0.007,
+          "peak_rss_mib": 7.6,
+          "repetitions": 5
+        },
+        "impact": {
+          "median_seconds": 0.008,
+          "min_seconds": 0.008,
+          "max_seconds": 0.009,
+          "peak_rss_mib": 9.9,
+          "repetitions": 5
+        },
+        "backtest": {
+          "median_seconds": 1.439,
+          "min_seconds": 1.433,
+          "max_seconds": 1.617,
+          "peak_rss_mib": 46.4,
+          "repetitions": 5
+        },
+        "database_mib": 1.4,
+        "new_commit_count": 20
+      }
+    },
+    {
+      "name": "colinhacks/zod",
+      "license": "MIT",
+      "commit": "2554b70c3d4a80273381e61d527d820720626440",
+      "first_parent_commits": 2305,
+      "ts_files": 515,
+      "ts_bytes": 3574163,
+      "impact_file": "packages/zod/src/v4/core/schemas.ts",
+      "results": {
+        "cold": {
+          "median_seconds": 0.971,
+          "min_seconds": 0.966,
+          "max_seconds": 0.987,
+          "peak_rss_mib": 101.1,
+          "repetitions": 5
+        },
+        "warm": {
+          "median_seconds": 0.007,
+          "min_seconds": 0.007,
+          "max_seconds": 0.009,
+          "peak_rss_mib": 7.9,
+          "repetitions": 5
+        },
+        "new_commits": {
+          "median_seconds": 0.148,
+          "min_seconds": 0.148,
+          "max_seconds": 0.154,
+          "peak_rss_mib": 36.8,
+          "repetitions": 5
+        },
+        "full_reindex": {
+          "median_seconds": 0.974,
+          "min_seconds": 0.964,
+          "max_seconds": 0.989,
+          "peak_rss_mib": 106.1,
+          "repetitions": 5
+        },
+        "graph": {
+          "median_seconds": 0.008,
+          "min_seconds": 0.007,
+          "max_seconds": 0.012,
+          "peak_rss_mib": 8.8,
+          "repetitions": 5
+        },
+        "impact": {
+          "median_seconds": 0.012,
+          "min_seconds": 0.012,
+          "max_seconds": 0.014,
+          "peak_rss_mib": 14.0,
+          "repetitions": 5
+        },
+        "backtest": {
+          "median_seconds": 3.148,
+          "min_seconds": 3.1,
+          "max_seconds": 3.182,
+          "peak_rss_mib": 73.5,
+          "repetitions": 5
+        },
+        "database_mib": 2.2,
+        "new_commit_count": 20
+      }
+    },
+    {
+      "name": "nestjs/nest",
+      "license": "MIT",
+      "commit": "8d9dd9d174921cc03882d1b39e91fb7bb1b1ca5a",
+      "first_parent_commits": 8891,
+      "ts_files": 2269,
+      "ts_bytes": 6742780,
+      "impact_file": "packages/platform-fastify/adapters/fastify-adapter.ts",
+      "results": {
+        "cold": {
+          "median_seconds": 1.317,
+          "min_seconds": 1.266,
+          "max_seconds": 1.356,
+          "peak_rss_mib": 66.0,
+          "repetitions": 5
+        },
+        "warm": {
+          "median_seconds": 0.007,
+          "min_seconds": 0.007,
+          "max_seconds": 0.007,
+          "peak_rss_mib": 8.1,
+          "repetitions": 5
+        },
+        "new_commits": {
+          "median_seconds": 0.139,
+          "min_seconds": 0.137,
+          "max_seconds": 0.152,
+          "peak_rss_mib": 36.5,
+          "repetitions": 5
+        },
+        "full_reindex": {
+          "median_seconds": 1.269,
+          "min_seconds": 1.258,
+          "max_seconds": 1.309,
+          "peak_rss_mib": 65.1,
+          "repetitions": 5
+        },
+        "graph": {
+          "median_seconds": 0.016,
+          "min_seconds": 0.015,
+          "max_seconds": 0.017,
+          "peak_rss_mib": 12.2,
+          "repetitions": 5
+        },
+        "impact": {
+          "median_seconds": 0.024,
+          "min_seconds": 0.024,
+          "max_seconds": 0.025,
+          "peak_rss_mib": 21.5,
+          "repetitions": 5
+        },
+        "backtest": {
+          "median_seconds": 3.77,
+          "min_seconds": 3.637,
+          "max_seconds": 3.947,
+          "peak_rss_mib": 85.6,
+          "repetitions": 5
+        },
+        "database_mib": 5.6,
+        "new_commit_count": 20
+      }
+    }
+  ]
+}

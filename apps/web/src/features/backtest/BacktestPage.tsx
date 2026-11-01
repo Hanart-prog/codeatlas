@@ -1,13 +1,14 @@
 import { type FormEvent, useState } from "react";
 
 import { useLatestBacktest, useRunBacktest } from "@/api/queries";
+import { JobActivity } from "@/components/JobActivity";
 import type { Theme } from "@/app/theme";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { BacktestResult } from "@/types/generated/BacktestResult";
-import type { JobProgress } from "@/types/generated/JobProgress";
+import type { JobResponse } from "@/types/generated/JobResponse";
 import type { RepositoryEntry } from "@/types/generated/RepositoryEntry";
 
 import { IntervalChart } from "./IntervalChart";
@@ -287,8 +288,8 @@ interface Props {
 
 export function BacktestPage({ repository, theme }: Props) {
   const latest = useLatestBacktest(repository?.id);
-  const [progress, setProgress] = useState<JobProgress | null>(null);
-  const run = useRunBacktest((job) => setProgress(job.progress));
+  const [job, setJob] = useState<JobResponse>();
+  const run = useRunBacktest(setJob);
   const [warmup, setWarmup] = useState(100);
   const [maxCases, setMaxCases] = useState(200);
   const [cutoffs, setCutoffs] = useState("5, 10");
@@ -305,7 +306,7 @@ export function BacktestPage({ repository, theme }: Props) {
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    setProgress(null);
+    setJob(undefined);
     run.mutate({
       id: repositoryId,
       request: { warmup, max_cases: maxCases, top_k: parseCutoffs(cutoffs) },
@@ -350,11 +351,7 @@ export function BacktestPage({ repository, theme }: Props) {
             <Button type="submit" disabled={run.isPending}>
               {run.isPending ? "Running…" : "Run backtest"}
             </Button>
-            {run.isPending && progress && progress.total > 0 && (
-              <span role="status" className="text-xs text-muted-foreground">
-                {progress.done} of {progress.total} cases
-              </span>
-            )}
+            {run.isPending && job && <JobActivity key={job.id} job={job} />}
           </form>
           {(run.error ?? latest.error) && (
             <p role="alert" className="text-sm text-destructive">

@@ -1,7 +1,9 @@
 import { type FormEvent, useState } from "react";
 
 import { useAnalyzeRepository } from "@/api/queries";
+import { JobActivity } from "@/components/JobActivity";
 import { Button } from "@/components/ui/button";
+import type { JobResponse } from "@/types/generated/JobResponse";
 
 interface Props {
   /** Shown until the user types. Not a remount key: remounting mid-analysis loses its state. */
@@ -12,7 +14,8 @@ interface Props {
 export function OpenRepositoryForm({ initialPath = "", onAnalyzed }: Props) {
   const [edited, setEdited] = useState<string>();
   const path = edited ?? initialPath;
-  const analysis = useAnalyzeRepository(onAnalyzed);
+  const [job, setJob] = useState<JobResponse>();
+  const analysis = useAnalyzeRepository(onAnalyzed, setJob);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -38,6 +41,11 @@ export function OpenRepositoryForm({ initialPath = "", onAnalyzed }: Props) {
           {analysis.isPending ? "Analyzing…" : "Analyze"}
         </Button>
       </div>
+      {analysis.isPending && job && (
+        <div className="mt-2">
+          <JobActivity key={job.id} job={job} />
+        </div>
+      )}
       {analysis.error && (
         <p role="alert" className="mt-2 text-sm text-destructive">
           {analysis.error.message}

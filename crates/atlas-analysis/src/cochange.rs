@@ -5,10 +5,12 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use atlas_git::{ExclusionRules, GitRepository, is_typescript};
+use atlas_git::{GitRepository, is_typescript};
 use atlas_model::history::{CommitChanges, FileChange, IdentifiedChange, IdentityIndex};
-use atlas_model::{AtlasConfig, AtlasError, CoChangeStats, Oid, RepoPath};
+use atlas_model::{AtlasConfig, AtlasError, CoChangeStats, Oid, RepoPath, RepositoryId};
+use atlas_storage::Database;
 
+use crate::commits::load_commits;
 use crate::lineage::assign_identities;
 
 /// Eligible commit positions by file identity and by pair. Pair counting is
@@ -98,21 +100,18 @@ impl ScopedHistory {
 
 /// Reads up to `window` first-parent commits ending at `cutoff`.
 pub fn load_scoped_history(
+    database: &Database,
     git: &GitRepository,
+    repository_id: RepositoryId,
     cutoff: &Oid,
     window: u32,
     config: &AtlasConfig,
 ) -> Result<ScopedHistory, AtlasError> {
-    let rules = ExclusionRules::from_config(&config.analysis, &config.limits)?;
     let walk = git.first_parent_history(cutoff, window)?;
-    let commits = walk
-        .oids
-        .iter()
-        .map(|oid| git.commit_changes(oid, &rules))
-        .collect::<Result<Vec<_>, _>>()?;
+    let loaded = load_commits(database, git, repository_id, &walk.oids, config)?;
 
     Ok(scope_history(
-        commits,
+        loaded.commits,
         git.is_shallow(),
         walk.is_truncated,
         config,

@@ -23,12 +23,12 @@ describe("App", () => {
     }
   });
 
-  it("says plainly when a section is not built", async () => {
+  it("opens every section without a repository", async () => {
     stubFetch(200, healthyBody);
     renderWithQuery(<App />);
     await userEvent.click(screen.getByRole("link", { name: /Reports/ }));
     expect(await screen.findByRole("heading", { name: "Reports" })).toBeInTheDocument();
-    expect(screen.getByText(/planned for Phase 6/)).toBeInTheDocument();
+    expect(screen.getByText("Open a repository from the Overview first.")).toBeInTheDocument();
   });
 
   it("says how to start the API when it is down", async () => {
@@ -46,6 +46,15 @@ describe("App", () => {
     });
     renderWithQuery(<App />);
     expect(await screen.findByText("No repository open")).toBeInTheDocument();
+  });
+
+  it("marks the generated demo so its results are not read as real", async () => {
+    stubRoutes({
+      "/health": { body: healthyBody },
+      "/repositories": { body: [{ id: 1, path: "/cache/demo/product", analyzed_at: 1 }] },
+    });
+    renderWithQuery(<App />);
+    expect(await screen.findByRole("note")).toHaveTextContent("say nothing about real projects");
   });
 
   it("falls back to the overview for unknown routes", () => {

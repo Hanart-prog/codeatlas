@@ -17,6 +17,6 @@ coverage/
 .DS_Store
 .idea/
 .vscode/
-apps/web/e2e/.fixture-path
+apps/web/e2e/.*fixture-path
 apps/web/test-results/
 apps/web/playwright-report/

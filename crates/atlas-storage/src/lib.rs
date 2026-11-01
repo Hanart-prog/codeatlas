@@ -4,6 +4,7 @@
 //! repositories. It can always be rebuilt, so it is a cache, not a source of truth.
 
 mod backtests;
+mod commit_diffs;
 mod history;
 mod migrations;
 mod snapshots;
@@ -11,7 +12,7 @@ mod snapshots;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use atlas_model::AtlasError;
+use atlas_model::{AtlasError, Work};
 use rusqlite::{Connection, ErrorCode, OpenFlags};
 use thiserror::Error;
 
@@ -62,6 +63,7 @@ impl From<StorageError> for AtlasError {
 #[derive(Debug)]
 pub struct Database {
     connection: Connection,
+    work: Work,
 }
 
 impl Database {
@@ -79,14 +81,20 @@ impl Database {
             Ok(())
         })?;
         retry_while_busy(|| Self::migrate(&mut connection))?;
-        Ok(Self { connection })
+        Ok(Self {
+            connection,
+            work: Work::default(),
+        })
     }
 
     /// Opens a private in-memory database, used by tests.
     pub fn open_in_memory() -> Result<Self, StorageError> {
         let mut connection = Connection::open_in_memory()?;
         Self::migrate(&mut connection)?;
-        Ok(Self { connection })
+        Ok(Self {
+            connection,
+            work: Work::default(),
+        })
     }
 
     fn migrate(connection: &mut Connection) -> Result<(), StorageError> {
@@ -99,6 +107,17 @@ impl Database {
     /// The latest migration applied to this database.
     pub fn schema_version(&self) -> Result<u32, StorageError> {
         migrations::current_version(&self.connection)
+    }
+
+    /// Everything long passes through a database session, so this is where it
+    /// finds out whether to stop and where to report. Defaults to no limits.
+    pub fn work(&self) -> &Work {
+        &self.work
+    }
+
+    /// Sets the controls for work done through this connection.
+    pub fn set_work(&mut self, work: Work) {
+        self.work = work;
     }
 
     /// The underlying connection.

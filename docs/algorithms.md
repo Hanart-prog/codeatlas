@@ -1,6 +1,6 @@
 # Algorithms and metric definitions
 
-Status: Phase 5. [evaluation.md](evaluation.md) defines backtesting.
+Status: current. [evaluation.md](evaluation.md) defines backtesting.
 
 ## History
 
@@ -135,6 +135,10 @@ Each side is the import snapshot of one commit. Comparing any two commits works,
 `limit` cuts each list (default 500). Counts are always the true totals.
 
 **Timeline:** file, import and cycle counts at evenly spaced commits of the latest analysis, always with the first and last, each read from that commit's own snapshot.
+
+## Directory map
+
+For a directory `D`, each file under `D` belongs to one group: the next path segment below `D`, or a "files here" group if it sits directly in `D`. If every file falls in one subdirectory, `D` moves down to it. Each import between two files under `D` counts once, as a link between their groups or as an internal import of one group. Imports leaving `D` are not shown. The largest groups are kept, ties by path, and the response counts what `limit` left out.
 
 ## Verification
 

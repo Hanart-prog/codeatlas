@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import type { HealthResponse } from "@/types/generated/HealthResponse";
 
 import { OpenRepositoryForm } from "./OpenRepositoryForm";
+import { RecentJobs } from "./RecentJobs";
 import { RepositoryOverview } from "./RepositoryOverview";
 
 function Fact({ label, value }: { label: string; value: string }) {
@@ -100,6 +101,7 @@ function RepositorySection({ repository, select }: SelectedRepository) {
           <Skeleton className="h-48 w-full" />
         </div>
       )}
+      {repository && <RecentJobs repositoryId={repository.id} />}
       {overview.data && <RepositoryOverview overview={overview.data} />}
     </>
   );

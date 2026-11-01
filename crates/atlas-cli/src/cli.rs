@@ -1,5 +1,4 @@
-//! Command-line definitions. Commands not built yet are still declared so that
-//! `--help` shows the full interface; running one reports its planned phase.
+//! Command-line definitions.
 
 use std::path::PathBuf;
 
@@ -61,12 +60,12 @@ pub enum Command {
     Timeline(TimelineArgs),
     /// Evaluate recommendations on later commits
     Backtest(BacktestArgs),
-    /// [Phase 6, not implemented] Write a static HTML report
+    /// Write a static HTML or JSON report of the latest analysis
     Report(ReportArgs),
     /// Start the local HTTP API
     Serve(ServeArgs),
-    /// [Phase 6, not implemented] Analyze a generated fixture and open the dashboard
-    Demo,
+    /// Generate a sample repository, analyze it and serve the dashboard
+    Demo(DemoArgs),
 }
 
 #[derive(Debug, Args)]
@@ -103,6 +102,9 @@ pub struct GraphArgs {
     /// Only files under this directory
     #[arg(long)]
     pub directory: Option<String>,
+    /// Show directories and the imports between them, not files
+    #[arg(long)]
+    pub by_directory: bool,
     /// Most connected files to include
     #[arg(long, default_value_t = 500)]
     pub limit: u32,
@@ -196,6 +198,32 @@ pub struct ReportArgs {
     /// File to write
     #[arg(long, default_value = "./codeatlas-report.html")]
     pub output: PathBuf,
+    /// html is one self-contained page; json is the same content as data
+    #[arg(long, value_enum, default_value_t)]
+    pub format: ReportFormat,
+}
+
+/// Output format of `codeatlas report`.
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+pub enum ReportFormat {
+    /// One self-contained page
+    #[default]
+    Html,
+    /// The same content as data
+    Json,
+}
+
+#[derive(Debug, Args)]
+pub struct DemoArgs {
+    /// Port to serve on; 0 picks a free port [default: 4317]
+    #[arg(long)]
+    pub port: Option<u16>,
+    /// Built dashboard to serve [default: apps/web/dist, if present]
+    #[arg(long, value_name = "DIR")]
+    pub web_dir: Option<PathBuf>,
+    /// Stop after preparing the demo, without serving it
+    #[arg(long)]
+    pub prepare_only: bool,
 }
 
 #[derive(Debug, Args)]

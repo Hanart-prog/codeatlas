@@ -40,3 +40,7 @@ Author names and emails are not stored, because no v1 feature needs them.
 `backtest_runs` holds one row per analysis run and parameter set. `params_json` is the key, covering every parameter and version that affects results, and `metrics_json` is the whole result, because nothing queries inside it. A repeat returns the stored row.
 
 `analysis_runs.used_order` records which run was last asked for, because a repeat analysis of an older commit is served from cache and must still become the current one.
+
+## Commit diffs
+
+`commit_diffs` caches each commit's diff against its first parent, as JSON, keyed by repository, commit and `cache_key`. The key is `ALGORITHM_VERSION`, the settings hash and a shallow marker, so a changed setting misses the cache rather than reading stale data. File identities are not cached, because they depend on the walked window ([ADR 15](decisions/0015-cache-diffs-not-runs.md)).

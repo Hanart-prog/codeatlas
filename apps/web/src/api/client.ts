@@ -5,6 +5,7 @@ import type { CompareResponse } from "@/types/generated/CompareResponse";
 import type { AnalyzeRequest } from "@/types/generated/AnalyzeRequest";
 import type { ApiErrorBody } from "@/types/generated/ApiErrorBody";
 import type { CommitPage } from "@/types/generated/CommitPage";
+import type { DirectoryMap } from "@/types/generated/DirectoryMap";
 import type { FileDetail } from "@/types/generated/FileDetail";
 import type { GraphResponse } from "@/types/generated/GraphResponse";
 import type { HealthResponse } from "@/types/generated/HealthResponse";
@@ -13,6 +14,7 @@ import type { ImpactResponse } from "@/types/generated/ImpactResponse";
 import type { LatestBacktest } from "@/types/generated/LatestBacktest";
 import type { JobResponse } from "@/types/generated/JobResponse";
 import type { OverviewResponse } from "@/types/generated/OverviewResponse";
+import type { ReportDocument } from "@/types/generated/ReportDocument";
 import type { RepositoryEntry } from "@/types/generated/RepositoryEntry";
 
 const BASE_URL = "/api/v1";
@@ -87,6 +89,8 @@ export const fetchCommits = (id: number, limit: number, signal: AbortSignal) =>
 export interface GraphFilter {
   ref?: string | undefined;
   directory?: string | undefined;
+  search?: string | undefined;
+  limit?: number | undefined;
   include?: "cochange" | undefined;
 }
 
@@ -96,7 +100,19 @@ function query(values: Record<string, string | undefined>): string {
 }
 
 export const fetchGraph = (id: number, filter: GraphFilter, signal: AbortSignal) =>
-  request<GraphResponse>(`/repositories/${id}/graph?${query({ ...filter })}`, { signal });
+  request<GraphResponse>(
+    `/repositories/${id}/graph?${query({ ...filter, limit: filter.limit?.toString() })}`,
+    { signal },
+  );
+
+export const fetchDirectoryMap = (id: number, ref: string | undefined, directory: string, signal: AbortSignal) =>
+  request<DirectoryMap>(`/repositories/${id}/graph/directories?${query({ ref, directory })}`, { signal });
+
+export const fetchReport = (id: number, signal: AbortSignal) =>
+  request<ReportDocument>(`/repositories/${id}/report`, { signal });
+
+export const reportUrl = (id: number, format: "html" | "json") =>
+  `${BASE_URL}/repositories/${id}/report?format=${format}`;
 
 export const fetchFileDetail = (id: number, path: string, ref: string | undefined, signal: AbortSignal) =>
   request<FileDetail>(`/repositories/${id}/files?${query({ path, ref })}`, { signal });
@@ -117,6 +133,11 @@ export const startBacktest = (id: number, backtest: BacktestRequest) =>
   postJson<JobResponse>(`/repositories/${id}/backtests`, backtest);
 
 export const fetchJob = (id: number) => request<JobResponse>(`/jobs/${id}`);
+
+export const cancelJob = (id: number) => postJson<JobResponse>(`/jobs/${id}/cancel`, {});
+
+export const fetchRepositoryJobs = (id: number, signal: AbortSignal) =>
+  request<JobResponse[]>(`/repositories/${id}/jobs`, { signal });
 
 export const openRepository = (path: string) => postJson<RepositoryEntry>("/repositories/open", { path });
 

@@ -232,6 +232,15 @@ impl Database {
         Ok(())
     }
 
+    /// Records that an analysis was cancelled. Cancelled runs hold no history.
+    pub fn cancel_run(&self, run: AnalysisRunId) -> Result<(), StorageError> {
+        self.connection.execute(
+            "UPDATE analysis_runs SET status = ?1, completed_at = unixepoch() WHERE id = ?2",
+            params![AnalysisStatus::Cancelled.as_str(), run.0],
+        )?;
+        Ok(())
+    }
+
     /// Writes all history for a run and marks it complete, atomically.
     pub fn complete_run(
         &mut self,

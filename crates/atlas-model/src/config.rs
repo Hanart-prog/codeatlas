@@ -91,6 +91,9 @@ pub struct ServerConfig {
     pub host: String,
     /// Port to bind; 0 picks a free port.
     pub port: u16,
+    /// Longest a request may work before it is stopped, in seconds. Background
+    /// jobs have no limit, because they can be watched and cancelled.
+    pub query_timeout_seconds: u32,
 }
 
 impl Default for ServerConfig {
@@ -98,6 +101,7 @@ impl Default for ServerConfig {
         Self {
             host: "127.0.0.1".to_owned(),
             port: 4317,
+            query_timeout_seconds: 120,
         }
     }
 }
@@ -134,6 +138,10 @@ impl AtlasConfig {
             (
                 "limits.max_graph_edges",
                 u64::from(self.limits.max_graph_edges),
+            ),
+            (
+                "server.query_timeout_seconds",
+                u64::from(self.server.query_timeout_seconds),
             ),
             (
                 "analysis.bulk_commit_file_threshold",

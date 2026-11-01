@@ -57,6 +57,11 @@ pub const MIGRATIONS: &[Migration] = &[
         name: "run_order",
         sql: include_str!("../migrations/0005_run_order.sql"),
     },
+    Migration {
+        version: 6,
+        name: "commit_diffs",
+        sql: include_str!("../migrations/0006_commit_diffs.sql"),
+    },
 ];
 
 /// What a migration pass did.

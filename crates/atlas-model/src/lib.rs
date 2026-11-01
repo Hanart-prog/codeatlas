@@ -12,6 +12,8 @@ pub mod graph;
 pub mod history;
 pub mod ids;
 pub mod impact;
+pub mod report;
+pub mod work;
 
 pub use backtest::{
     BacktestCase, BacktestCounts, BacktestEntry, BacktestRequest, BacktestResult, CaseRanking,
@@ -26,14 +28,15 @@ pub use config::{AnalysisConfig, AtlasConfig, Limits, ServerConfig, StorageConfi
 pub use dto::{
     AnalysisStatus, AnalyzeRequest, ApiErrorBody, ApiErrorDetail, CommitEntry, CommitPage,
     CommitSummary, DatabaseHealth, DependencyEdgeType, ExclusionCount, FileChurn, FileSummary,
-    HealthResponse, HealthStatus, HistorySummary, JobProgress, JobResponse, JobStatus,
-    OpenRepositoryRequest, OverviewResponse, RepositoryEntry, RunSummary,
+    HealthResponse, HealthStatus, HistorySummary, JobKind, JobProgress, JobResponse, JobStatus,
+    OpenRepositoryRequest, OverviewResponse, ProgressUnit, RepositoryEntry, RunSummary,
 };
 pub use error::{AtlasError, ErrorCode};
 pub use graph::{
-    Cycle, FileDetail, GraphEdge, GraphNode, GraphResponse, ImportRecord, Language, ParseStatus,
-    ParsedFile, ParserCoverage, ResolutionKind, SnapshotData, SnapshotFile, TsconfigStatus,
-    UnresolvedCount, UnresolvedImport, UnresolvedReason,
+    Cycle, DirectoryGroup, DirectoryGroupKind, DirectoryLink, DirectoryMap, FileDetail, GraphEdge,
+    GraphNode, GraphResponse, ImportRecord, Language, ParseStatus, ParsedFile, ParserCoverage,
+    ResolutionKind, SnapshotData, SnapshotFile, TsconfigStatus, UnresolvedCount, UnresolvedImport,
+    UnresolvedReason,
 };
 pub use history::{ChangeStatus, ExclusionReason, IndexedHistory};
 pub use ids::{AnalysisRunId, Oid, RepoPath, RepositoryId};
@@ -41,6 +44,9 @@ pub use impact::{
     CoChangeEdge, CoChangeStats, EvidenceKind, HistoricalEvidence, ImpactRecommendation,
     ImpactRequest, ImpactResponse, SelectedFile, SelectedFileStatus, StaticEvidence,
 };
+
+pub use report::{ReportArchitecture, ReportBacktest, ReportDocument, ReportProvenance};
+pub use work::Work;
 
 /// Version of the application, reported by the CLI and `/health`.
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -57,5 +63,6 @@ pub const PARSER_VERSION: u32 = 1;
 /// Version of the backtest protocol. Changing it invalidates stored backtests.
 pub const BACKTEST_VERSION: u32 = 1;
 
-/// Version of the analysis algorithms. Changing it invalidates cached analyses.
+/// Version of the analysis algorithms. Changing it invalidates cached analyses
+/// and cached commit diffs, so changes to diffing must bump it too.
 pub const ALGORITHM_VERSION: u32 = 4;

@@ -1,6 +1,6 @@
 # Architecture
 
-Status: Phase 5.
+Status: all specification phases built.
 
 ```text
 Local repository (read-only)
@@ -29,10 +29,10 @@ atlas-model: shared by every crate
 | `atlas-analysis` | Identity lineage, churn, the indexing pipeline, snapshots, read models, co-change, impact ranking, architecture comparison, backtesting | Working |
 | `atlas-storage` | SQLite connection, migrations, history persistence | Working |
 | `atlas-api` | HTTP translation, background jobs, request guard, static dashboard | Working |
-| `atlas-cli` | The `codeatlas` binary | `analyze`, `overview`, `graph`, `impact`, `compare`, `timeline`, `backtest` and `serve` working; the rest report their phase |
+| `atlas-cli` | The `codeatlas` binary | Working |
 | `atlas-parser` | TS/TSX import extraction, resolution, `tsconfig` aliases | Working |
 | `atlas-graph` | Directed graph, cycles, reverse reachability | Working |
-| `atlas-fixtures` (`fixtures/generator`) | Deterministic fixture repositories, for tests only | Working |
+| `atlas-fixtures` (`fixtures/generator`) | Deterministic repositories for tests, benchmarks and `codeatlas demo` | Working |
 
 Integration tests live beside the crates they exercise, in `crates/*/tests`.
 

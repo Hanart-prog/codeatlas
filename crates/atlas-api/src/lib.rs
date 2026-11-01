@@ -11,8 +11,9 @@ use std::future::Future;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
-use atlas_model::{AtlasConfig, AtlasError, ErrorCode};
+use atlas_model::{AtlasConfig, AtlasError, ErrorCode, Work};
 use atlas_storage::Database;
 use axum::extract::DefaultBodyLimit;
 use axum::http::{HeaderValue, Method, StatusCode, header};
@@ -78,15 +79,18 @@ impl AppState {
     }
 
     /// Runs work that may write, on its own connection, so that it does not hold
-    /// up other requests.
+    /// up other requests. It stops at the configured time limit, keeping what it
+    /// finished, so a retry continues rather than starts again.
     async fn write<T: Send + 'static>(
         &self,
         work: impl FnOnce(&mut Database, &AtlasConfig) -> Result<T, AtlasError> + Send + 'static,
     ) -> Result<T, ApiError> {
         let path = self.database_path.clone();
         let config = Arc::clone(&self.config);
+        let limit = Duration::from_secs(u64::from(config.server.query_timeout_seconds));
         let task = tokio::task::spawn_blocking(move || {
             let mut database = Database::open(&path)?;
+            database.set_work(Work::within(limit));
             work(&mut database, &config)
         });
         match task.await {
@@ -124,7 +128,12 @@ pub fn router(state: AppState) -> Router {
         .route("/repositories/{id}/overview", get(repositories::overview))
         .route("/repositories/{id}/commits", get(repositories::commits))
         .route("/repositories/{id}/graph", get(repositories::graph))
+        .route(
+            "/repositories/{id}/graph/directories",
+            get(repositories::directories),
+        )
         .route("/repositories/{id}/files", get(repositories::file))
+        .route("/repositories/{id}/report", get(repositories::report))
         .route("/repositories/{id}/impact", post(repositories::impact))
         .route("/repositories/{id}/compare", post(repositories::compare))
         .route("/repositories/{id}/timeline", get(repositories::timeline))
@@ -132,7 +141,9 @@ pub fn router(state: AppState) -> Router {
             "/repositories/{id}/backtests",
             post(repositories::start_backtest).get(repositories::latest_backtest),
         )
+        .route("/repositories/{id}/jobs", get(jobs::repository_jobs))
         .route("/jobs/{id}", get(jobs::get_job))
+        .route("/jobs/{id}/cancel", post(jobs::cancel_job))
         .fallback(not_found)
         .method_not_allowed_fallback(method_not_allowed)
         .with_state(state.clone());

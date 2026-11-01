@@ -10,11 +10,14 @@ import {
   type GraphFilter,
   fetchBacktest,
   fetchCommits,
+  fetchDirectoryMap,
   fetchFileDetail,
   fetchGraph,
   fetchJob,
   fetchOverview,
+  fetchReport,
   fetchRepositories,
+  fetchRepositoryJobs,
   fetchTimeline,
   openRepository,
   runCompare,
@@ -24,6 +27,7 @@ import {
 } from "./client";
 
 const JOB_POLL_MS = 300;
+const JOBS_IDLE_POLL_MS = 3000;
 
 export function useRepositories() {
   return useQuery({
@@ -61,6 +65,37 @@ export function useGraph(id: number | undefined, filter: GraphFilter) {
   });
 }
 
+export function useDirectoryMap(id: number | undefined, ref: string | undefined, directory: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["directories", id, ref, directory],
+    queryFn: ({ signal }) => fetchDirectoryMap(id as number, ref, directory, signal),
+    enabled: enabled && id !== undefined,
+    retry: false,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useReport(id: number | undefined) {
+  return useQuery({
+    queryKey: ["report", id],
+    queryFn: ({ signal }) => fetchReport(id as number, signal),
+    enabled: id !== undefined,
+    retry: false,
+  });
+}
+
+export function useRepositoryJobs(id: number) {
+  return useQuery({
+    queryKey: ["jobs", id],
+    queryFn: ({ signal }) => fetchRepositoryJobs(id, signal),
+    retry: false,
+    refetchInterval: (query) =>
+      query.state.data?.some((job) => job.status === "queued" || job.status === "running")
+        ? JOB_POLL_MS
+        : JOBS_IDLE_POLL_MS,
+  });
+}
+
 export function useImpact() {
   return useMutation({
     mutationFn: ({ id, request }: { id: number; request: ImpactRequest }) => runImpact(id, request),
@@ -91,8 +126,10 @@ export function useFileDetail(id: number | undefined, path: string | undefined, 
   });
 }
 
-async function waitForJob(job: JobResponse, onUpdate?: (job: JobResponse) => void): Promise<void> {
+/** Waits for a job to end, and says whether it finished its work. */
+async function waitForJob(job: JobResponse, onUpdate?: (job: JobResponse) => void): Promise<boolean> {
   let current = job;
+  onUpdate?.(current);
   while (current.status === "queued" || current.status === "running") {
     await new Promise((resolve) => setTimeout(resolve, JOB_POLL_MS));
     current = await fetchJob(current.id);
@@ -101,6 +138,7 @@ async function waitForJob(job: JobResponse, onUpdate?: (job: JobResponse) => voi
   if (current.status === "failed") {
     throw new ApiRequestError("analysis_failed", current.error ?? "The analysis failed.");
   }
+  return current.status === "completed";
 }
 
 export function useLatestBacktest(id: number | undefined) {
@@ -124,16 +162,16 @@ export function useRunBacktest(onUpdate: (job: JobResponse) => void) {
 }
 
 /** Opens a repository by path, analyzes it and waits for the result. */
-export function useAnalyzeRepository(onDone: (id: number) => void) {
+export function useAnalyzeRepository(onDone: (id: number) => void, onUpdate: (job: JobResponse) => void) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: async (path: string) => {
       const repository = await openRepository(path);
-      await waitForJob(await startAnalysis(repository.id));
-      return repository.id;
+      const finished = await waitForJob(await startAnalysis(repository.id), onUpdate);
+      return finished ? repository.id : undefined;
     },
     onSuccess: async (id) => {
-      onDone(id);
+      if (id !== undefined) onDone(id);
       await client.invalidateQueries();
     },
     onSettled: () => client.invalidateQueries({ queryKey: ["repositories"] }),

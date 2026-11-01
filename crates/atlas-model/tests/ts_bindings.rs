@@ -18,8 +18,8 @@ use atlas_model::{
 };
 use atlas_model::{
     BacktestCase, BacktestCounts, BacktestEntry, BacktestRequest, BacktestResult, CaseRanking,
-    Estimate, JobProgress, LatestBacktest, MetricsAtK, Ranker, RankerResult, TrendBucket,
-    TrendRate,
+    Estimate, JobKind, JobProgress, LatestBacktest, MetricsAtK, ProgressUnit, Ranker, RankerResult,
+    TrendBucket, TrendRate,
 };
 use atlas_model::{
     CoChangeEdge, CoChangeStats, EvidenceKind, HistoricalEvidence, ImpactRecommendation,
@@ -28,6 +28,10 @@ use atlas_model::{
 use atlas_model::{
     Cycle, FileDetail, GraphEdge, GraphNode, GraphResponse, Language, ParseStatus, ParserCoverage,
     ResolutionKind, TsconfigStatus, UnresolvedCount, UnresolvedImport, UnresolvedReason,
+};
+use atlas_model::{
+    DirectoryGroup, DirectoryGroupKind, DirectoryLink, DirectoryMap, ReportArchitecture,
+    ReportBacktest, ReportDocument, ReportProvenance,
 };
 use ts_rs::TS;
 
@@ -55,7 +59,17 @@ fn generated_typescript_is_up_to_date() {
         binding::<BacktestResult>(),
         binding::<CaseRanking>(),
         binding::<Estimate>(),
+        binding::<DirectoryGroup>(),
+        binding::<DirectoryGroupKind>(),
+        binding::<DirectoryLink>(),
+        binding::<DirectoryMap>(),
+        binding::<ReportArchitecture>(),
+        binding::<ReportBacktest>(),
+        binding::<ReportDocument>(),
+        binding::<ReportProvenance>(),
+        binding::<JobKind>(),
         binding::<JobProgress>(),
+        binding::<ProgressUnit>(),
         binding::<LatestBacktest>(),
         binding::<MetricsAtK>(),
         binding::<Ranker>(),

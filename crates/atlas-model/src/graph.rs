@@ -229,6 +229,67 @@ pub struct GraphResponse {
     pub total_edge_count: u32,
 }
 
+/// What a box on the directory map stands for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum DirectoryGroupKind {
+    /// A subdirectory of the map's directory, with everything under it.
+    Directory,
+    /// The files directly in the map's directory.
+    LooseFiles,
+}
+
+/// A group of files on the directory map.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct DirectoryGroup {
+    /// Directory path; the map's own directory for loose files, empty at the root.
+    pub path: String,
+    /// What the group stands for.
+    pub kind: DirectoryGroupKind,
+    /// Source files in the group.
+    pub file_count: u32,
+    /// Files in the group that are in an import cycle.
+    pub cyclic_file_count: u32,
+    /// Imports between files of the group.
+    pub internal_import_count: u32,
+}
+
+/// Imports from one group to another. Every import is counted, with no regard to
+/// kind; they say nothing about what runs.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct DirectoryLink {
+    /// Index in `groups` of the importing group.
+    pub source: u32,
+    /// Index in `groups` of the imported group.
+    pub target: u32,
+    /// Imports between them.
+    pub import_count: u32,
+}
+
+/// Body of `GET /api/v1/repositories/:id/graph/directories`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct DirectoryMap {
+    /// The commit described.
+    pub commit: Oid,
+    /// The directory shown: the one asked for, or deeper when it held only one
+    /// subdirectory. Empty at the repository root.
+    pub directory: String,
+    /// Groups, most files first, ties by path.
+    pub groups: Vec<DirectoryGroup>,
+    /// Imports between the returned groups, by source then target.
+    pub links: Vec<DirectoryLink>,
+    /// Groups left out by `limit`.
+    pub hidden_group_count: u32,
+    /// Files in those groups.
+    pub hidden_file_count: u32,
+    /// Files under `directory`.
+    pub matching_node_count: u32,
+    /// Files in the whole snapshot.
+    pub total_node_count: u32,
+    /// Edges in the whole snapshot.
+    pub total_edge_count: u32,
+}
+
 /// An import with no local edge.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UnresolvedImport {

@@ -15,12 +15,13 @@ use atlas_model::history::{ChangeStatus, CommitChanges};
 use atlas_model::{
     ALGORITHM_VERSION, AtlasConfig, AtlasError, BACKTEST_VERSION, BacktestCase, BacktestCounts,
     BacktestEntry, BacktestRequest, BacktestResult, CaseRanking, CommitSummary, Estimate,
-    EvidenceKind, MetricsAtK, PARSER_VERSION, Ranker, RankerResult, RepoPath, RepositoryEntry,
-    TrendBucket, TrendRate,
+    EvidenceKind, MetricsAtK, PARSER_VERSION, ProgressUnit, Ranker, RankerResult, RepoPath,
+    RepositoryEntry, TrendBucket, TrendRate,
 };
 use atlas_storage::Database;
 
 use crate::cochange::{ScopedHistory, is_eligible, scope_history};
+use crate::commits::load_commits;
 use crate::impact::{DEFAULT_HISTORY_WINDOW, DEFAULT_MAX_DEPTH, Weights, cutoff_graph, rank};
 use crate::timeline::sample;
 
@@ -499,11 +500,7 @@ pub fn backtest(
     let git = GitRepository::open(Path::new(&repository.path))?;
     let rules = ExclusionRules::from_config(&config.analysis, &config.limits)?;
     let walk = git.first_parent_history(&run.target_oid, run.history_limit)?;
-    let commits = walk
-        .oids
-        .iter()
-        .map(|oid| git.commit_changes(oid, &rules))
-        .collect::<Result<Vec<_>, _>>()?;
+    let commits = load_commits(database, &git, repository.id, &walk.oids, config)?.commits;
 
     let threshold = config.analysis.bulk_commit_file_threshold;
     let (planned, mut counts) = plan_cases(&commits, params.warmup, threshold);
@@ -590,6 +587,9 @@ pub fn backtest(
             rankings,
         });
         progress(done as u32 + 1, total);
+        database
+            .work()
+            .step(done as u32 + 1, total, ProgressUnit::Cases)?;
     }
 
     let seeded_outcomes: Vec<(&[RepoPath], &[RepoPath])> = seeded

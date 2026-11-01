@@ -14,6 +14,7 @@ path = "src/main.rs"
 [dependencies]
 atlas-analysis.workspace = true
 atlas-api.workspace = true
+atlas-fixtures.workspace = true
 atlas-model.workspace = true
 atlas-storage.workspace = true
 clap.workspace = true
@@ -24,7 +25,6 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 
 [dev-dependencies]
-atlas-fixtures.workspace = true
 tempfile.workspace = true
 
 [lints]

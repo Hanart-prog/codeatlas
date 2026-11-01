@@ -1,17 +1,17 @@
 # Limitations
 
-## Current state (Phase 5)
+## Current state
 
 - Rankings were measured on six held-out repositories, which is a small sample. See [evaluation.md](evaluation.md).
-- No benchmark has been run, so this project makes no performance claims.
-- One of the six dashboard sections is a placeholder that says so.
+- Benchmarks come from one machine and a few repositories. See [benchmarks.md](benchmarks.md).
 - `codeatlas serve` serves the dashboard from `apps/web/dist`, so a binary alone serves only the API, and it must run from the repository root or be given `--web-dir`.
-- Large graphs are cut to the most connected 500 files, with the true totals shown. Directory aggregation arrives in Phase 6.
 - Only macOS arm64 has been tested locally, and Linux runs in CI. Windows is untested.
-- Requests have no time limit, and a large impact window or first timeline runs until it finishes. Jobs cannot be cancelled yet, and they live in memory, so job ids do not survive a restart. Results do.
-- Each new tip commit reindexes the whole window. Incremental indexing is post-core.
+- Stopping takes effect at the next step, so one huge diff runs to its end first ([ADR 16](decisions/0016-stop-work-through-the-database-session.md)). Requests stop after `server.query_timeout_seconds` (default 120). A browser that disconnects does not stop its request sooner.
+- Jobs live in memory, so job ids and the Recent jobs list do not survive a restart. Results do.
+- Each new tip stores a full copy of its window, and old runs are never removed. Deleting the database is safe, because everything in it can be rebuilt.
 - `make verify` and the CI `verify` job recheck one pinned commit of `sindresorhus/ky` on each push. `shadcn-ui/taxonomy` and `colinhacks/zod` are rechecked by hand.
-- A process killed mid-analysis leaves its run marked `running`. It holds no history and does not block a later run.
+- A process killed mid-analysis leaves its run marked `running`. It holds no history and does not block a later run. Diffs it had already saved are reused.
+- The demo repository is generated. Its numbers show how the tool works and say nothing about real projects.
 
 ## History semantics
 
@@ -64,7 +64,6 @@
 - `uncertain` covers the importing file's own parse. An edge can also change with no source edit, because of `tsconfig.json` or a new target file, which notes describe only in total.
 - Renames are limited to files in both graphs, so a move from `.js` to `.ts` is an added file.
 - The timeline shows up to 40 evenly spaced commits of the latest analysis on the dashboard, so a change between two points can be hidden. Up to 200 are available from the API and CLI. Sampled counts come from each commit's own snapshot, and the first load builds any snapshots that are missing.
-- One manual run on a generated repository of 10,000 files and 40,000 imports took 1.4 to 1.8s for a comparison with about 14,600 import changes, 8.7s for a first timeline and 1.1s for a cached one. Its shape is synthetic and this is not a benchmark. Phase 6 adds those.
 
 ## Repository safety
 

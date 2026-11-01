@@ -3,9 +3,11 @@
 mod backtest;
 mod cli;
 mod compare;
+mod demo;
 mod graph;
 mod history;
 mod impact;
+mod report;
 mod serve;
 mod timeline;
 
@@ -64,8 +66,8 @@ fn run(cli: Cli) -> Result<(), AtlasError> {
         Command::Compare(args) => compare::run(args, &config, &data_dir),
         Command::Timeline(args) => timeline::run(args, &config, &data_dir),
         Command::Backtest(args) => backtest::run(args, &config, &data_dir),
-        Command::Report(_) => planned("`codeatlas report`", 6),
-        Command::Demo => planned("`codeatlas demo`", 6),
+        Command::Report(args) => report::run(args, &config, &data_dir),
+        Command::Demo(args) => demo::run(args, config, &data_dir),
     }
 }
 
@@ -76,10 +78,6 @@ fn database_path(data_dir: &Path) -> Result<PathBuf, AtlasError> {
         source,
     })?;
     Ok(data_dir.join(DATABASE_FILE))
-}
-
-fn planned(feature: &'static str, phase: u8) -> Result<(), AtlasError> {
-    Err(AtlasError::NotImplemented { feature, phase })
 }
 
 fn load_config(path: Option<&Path>) -> Result<AtlasConfig, AtlasError> {

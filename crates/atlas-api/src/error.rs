@@ -47,6 +47,8 @@ impl From<AtlasError> for ApiError {
             ErrorCode::MethodNotAllowed => StatusCode::METHOD_NOT_ALLOWED,
             ErrorCode::ForbiddenHost | ErrorCode::ForbiddenOrigin => StatusCode::FORBIDDEN,
             ErrorCode::NotImplemented => StatusCode::NOT_IMPLEMENTED,
+            ErrorCode::Cancelled => StatusCode::CONFLICT,
+            ErrorCode::TimedOut => StatusCode::GATEWAY_TIMEOUT,
             ErrorCode::GitError | ErrorCode::StorageError | ErrorCode::Internal => {
                 StatusCode::INTERNAL_SERVER_ERROR
             }

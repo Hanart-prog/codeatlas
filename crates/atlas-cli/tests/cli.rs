@@ -96,19 +96,115 @@ fn version_matches_the_package() {
 }
 
 #[test]
-fn unbuilt_commands_fail_and_name_their_phase() {
-    let cases: [(&[&str], &str); 2] = [
-        (&["report", "/nonexistent"], "Phase 6"),
-        (&["demo"], "Phase 6"),
-    ];
-    for (args, phase) in cases {
-        let output = run(args);
-        assert_eq!(output.status.code(), Some(1), "{args:?}");
-        assert!(output.stdout.is_empty(), "{args:?}");
-        let stderr = String::from_utf8(output.stderr).unwrap();
-        assert!(stderr.contains("not implemented"), "{stderr}");
-        assert!(stderr.contains(phase), "{stderr}");
+fn report_writes_a_self_contained_page_and_data() {
+    let repository = tempfile::tempdir().unwrap();
+    atlas_fixtures::generate_main_fixture(repository.path()).unwrap();
+    let data = tempfile::tempdir().unwrap();
+    let path = repository.path().to_str().unwrap();
+    let data_dir = data.path().to_str().unwrap();
+    assert!(
+        run(&["analyze", path, "--data-dir", data_dir])
+            .status
+            .success()
+    );
+
+    let page = data.path().join("report.html");
+    let output = run(&[
+        "report",
+        path,
+        "--data-dir",
+        data_dir,
+        "--output",
+        page.to_str().unwrap(),
+    ]);
+    assert!(output.status.success(), "{output:?}");
+    let html = std::fs::read_to_string(&page).unwrap();
+    assert!(html.starts_with("<!DOCTYPE html>"));
+    assert!(html.contains("src/billing/invoice.ts"));
+    assert!(!html.contains("<script"));
+    assert!(!html.contains("http://") && !html.contains("https://"));
+
+    let file = data.path().join("report.json");
+    let output = run(&[
+        "report",
+        path,
+        "--data-dir",
+        data_dir,
+        "--format",
+        "json",
+        "--output",
+        file.to_str().unwrap(),
+    ]);
+    assert!(output.status.success(), "{output:?}");
+    let document: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
+    assert_eq!(document["history"]["commit_count"], 13);
+    assert_eq!(
+        document["provenance"]["algorithm_version"],
+        atlas_model::ALGORITHM_VERSION
+    );
+}
+
+#[test]
+fn report_needs_an_analysis_first() {
+    let repository = tempfile::tempdir().unwrap();
+    atlas_fixtures::generate_main_fixture(repository.path()).unwrap();
+    let data = tempfile::tempdir().unwrap();
+    let output = run(&[
+        "report",
+        repository.path().to_str().unwrap(),
+        "--data-dir",
+        data.path().to_str().unwrap(),
+    ]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        String::from_utf8(output.stderr)
+            .unwrap()
+            .contains("analyzed")
+    );
+}
+
+#[test]
+fn demo_prepares_real_results_and_can_run_again() {
+    let data = tempfile::tempdir().unwrap();
+    let data_dir = data.path().to_str().unwrap();
+    for _ in 0..2 {
+        let output = run(&["demo", "--prepare-only", "--data-dir", data_dir]);
+        assert!(output.status.success(), "{output:?}");
     }
+    let repository = data.path().join("demo/product");
+    let demo_data = data.path().join("demo");
+    let output = run(&[
+        "overview",
+        repository.to_str().unwrap(),
+        "--format",
+        "json",
+        "--data-dir",
+        demo_data.to_str().unwrap(),
+    ]);
+    assert!(output.status.success(), "{output:?}");
+    let overview: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(overview["history"]["commit_count"], 180);
+    assert!(!data.path().join("codeatlas.sqlite").exists());
+}
+
+#[test]
+fn graph_by_directory_shows_groups() {
+    let repository = tempfile::tempdir().unwrap();
+    atlas_fixtures::generate_main_fixture(repository.path()).unwrap();
+    let data = tempfile::tempdir().unwrap();
+    let path = repository.path().to_str().unwrap();
+    let data_dir = data.path().to_str().unwrap();
+    assert!(
+        run(&["analyze", path, "--data-dir", data_dir])
+            .status
+            .success()
+    );
+    let output = run(&["graph", path, "--by-directory", "--data-dir", data_dir]);
+    assert!(output.status.success(), "{output:?}");
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("src/"), "{text}");
+    assert!(text.contains("imports"), "{text}");
 }
 
 #[test]

@@ -117,7 +117,14 @@ pub fn impact(
         .collect::<Result<_, _>>()?;
 
     let graph = cutoff_graph(database, &git, repository, &cutoff, config)?;
-    let history = load_scoped_history(&git, &cutoff, params.window, config)?;
+    let history = load_scoped_history(
+        database,
+        &git,
+        repository.id,
+        &cutoff,
+        params.window,
+        config,
+    )?;
 
     let rules = ExclusionRules::from_config(&config.analysis, &config.limits)?;
     let tree: HashSet<RepoPath> = git

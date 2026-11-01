@@ -5,10 +5,11 @@ CARGO := $(shell command -v cargo 2>/dev/null || echo $(HOME)/.cargo/bin/cargo)
 
 WEB := apps/web
 WARMUP := 100
+PORT := 4317
 PNPM_VERSION := 10.34.9
 PNPM := $(shell command -v pnpm 2>/dev/null || echo npx --yes pnpm@$(PNPM_VERSION))
 
-.PHONY: setup check test build e2e verify dev types fixture clean
+.PHONY: setup check test build e2e verify dev demo bench types fixture clean
 
 setup: ## Fetch Rust and frontend dependencies
 	@test -x "$(CARGO)" || { echo "cargo not found; install Rust from https://rustup.rs"; exit 1; }
@@ -47,6 +48,13 @@ dev: ## API on :4317 and Vite on :5173; Ctrl-C stops both
 	$(CARGO) run -p atlas-cli -- serve & \
 	(cd $(WEB) && $(PNPM) dev) & \
 	wait
+
+demo: setup build ## Build everything, then analyze a generated repository and serve it [PORT=4317]
+	target/release/codeatlas demo --port $(PORT)
+
+bench: ## Measure a generated fixture and public repositories; needs the network
+	$(CARGO) build --release --locked -p atlas-cli -p atlas-fixtures
+	python3 benchmarks/run.py
 
 types: ## Regenerate frontend types from the Rust DTOs
 	UPDATE_BINDINGS=1 $(CARGO) test -p atlas-model --test ts_bindings

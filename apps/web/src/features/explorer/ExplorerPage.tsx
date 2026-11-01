@@ -1,18 +1,25 @@
 import { useCallback, useMemo, useState } from "react";
 
 import { ApiRequestError } from "@/api/client";
-import { useCommits, useGraph } from "@/api/queries";
+import { useCommits, useDirectoryMap, useGraph } from "@/api/queries";
 import type { Theme } from "@/app/theme";
+import { useDebounced } from "@/app/useDebounced";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import type { DirectoryGroup } from "@/types/generated/DirectoryGroup";
 import type { RepositoryEntry } from "@/types/generated/RepositoryEntry";
 
 import { CoveragePanel, CycleList } from "./CoveragePanel";
+import { DirectoryCanvas, groupLabel } from "./DirectoryCanvas";
 import { FileInspector } from "./FileInspector";
 import { GraphCanvas } from "./GraphCanvas";
 
 const COMMIT_CHOICES = 200;
+/** Above this a file graph is a tangle, so the map comes first. */
+const MAP_ABOVE_FILES = 200;
+const FOUND_FILES = 100;
 const FIELD = "h-8 rounded-md border bg-background px-2 text-sm";
 
 function LegendLine({ dash, label }: { dash: string; label: string }) {
@@ -59,11 +66,24 @@ export function ExplorerPage({ repository, theme }: Props) {
   const [showCochange, setShowCochange] = useState(false);
   const [selected, setSelected] = useState<string>();
 
+  const [view, setView] = useState<"auto" | "files" | "map">("auto");
+
+  const typedDirectory = useDebounced(directory.trim());
   const graph = useGraph(repository?.id, {
     ref: commit,
-    directory: directory.trim() || undefined,
+    directory: typedDirectory || undefined,
     include: showCochange ? "cochange" : undefined,
   });
+  const term = useDebounced(search.trim());
+  const found = useGraph(term ? repository?.id : undefined, {
+    ref: commit,
+    directory: typedDirectory || undefined,
+    search: term,
+    limit: FOUND_FILES,
+  });
+  const matching = graph.data?.matching_node_count ?? 0;
+  const showMap = view === "map" || (view === "auto" && matching > MAP_ABOVE_FILES);
+  const map = useDirectoryMap(repository?.id, commit, typedDirectory, showMap);
   const commits = useCommits(repository?.id, COMMIT_CHOICES, true);
   const select = useCallback((path: string | undefined) => setSelected(path), []);
 
@@ -73,10 +93,12 @@ export function ExplorerPage({ repository, theme }: Props) {
     () => data?.edges.filter((edge) => showTypes || edge.edge_type !== "type_only_import"),
     [data, showTypes],
   );
-  const listed = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return nodes?.filter((node) => node.path.toLowerCase().includes(term)) ?? [];
-  }, [nodes, search]);
+  const listed = term ? (found.data?.nodes ?? []) : (nodes ?? []);
+  const open = useCallback((group: DirectoryGroup) => {
+    setDirectory(group.path);
+    setSelected(undefined);
+    setView(group.kind === "loose_files" ? "files" : "auto");
+  }, []);
 
   if (!repository) {
     return (
@@ -117,7 +139,10 @@ export function ExplorerPage({ repository, theme }: Props) {
           <input
             className={cn(FIELD, "w-44 font-mono")}
             value={directory}
-            onChange={(event) => setDirectory(event.target.value)}
+            onChange={(event) => {
+              setDirectory(event.target.value);
+              setView("auto");
+            }}
             placeholder="src/auth"
             spellCheck={false}
           />
@@ -146,16 +171,59 @@ export function ExplorerPage({ repository, theme }: Props) {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  {nodes.length.toLocaleString("en-US")} of {data.matching_node_count.toLocaleString("en-US")} files
+                  {showMap
+                    ? `${(map.data?.groups.length ?? 0).toLocaleString("en-US")} groups of ${data.matching_node_count.toLocaleString("en-US")} files`
+                    : `${nodes.length.toLocaleString("en-US")} of ${data.matching_node_count.toLocaleString("en-US")} files`}
                 </CardTitle>
                 <span className="font-mono text-xs text-muted-foreground">
                   {data.commit.slice(0, 10)} · {data.total_edge_count.toLocaleString("en-US")} imports in total
                 </span>
               </CardHeader>
+              <div className="flex flex-wrap items-center gap-2 px-4 pb-2 text-xs">
+                <Button type="button" variant="ghost" className="aria-pressed:bg-muted aria-pressed:text-foreground" aria-pressed={showMap} onClick={() => setView("map")}>
+                  Directory map
+                </Button>
+                <Button type="button" variant="ghost" className="aria-pressed:bg-muted aria-pressed:text-foreground" aria-pressed={!showMap} onClick={() => setView("files")}>
+                  Files
+                </Button>
+                {showMap && map.data && (
+                  <nav aria-label="Directory" className="flex flex-wrap items-center gap-1 font-mono text-muted-foreground">
+                    <button type="button" className="hover:text-foreground" onClick={() => setDirectory("")}>
+                      root
+                    </button>
+                    {map.data.directory
+                      .split("/")
+                      .filter(Boolean)
+                      .map((part, index, parts) => (
+                        <button
+                          key={parts.slice(0, index + 1).join("/")}
+                          type="button"
+                          className="hover:text-foreground"
+                          onClick={() => setDirectory(parts.slice(0, index + 1).join("/"))}
+                        >
+                          / {part}
+                        </button>
+                      ))}
+                  </nav>
+                )}
+              </div>
+              {map.error && showMap && (
+                <CardContent>
+                  <p role="alert" className="text-sm text-destructive">
+                    {map.error.message}
+                  </p>
+                </CardContent>
+              )}
               {nodes.length === 0 ? (
                 <CardContent>
                   <p className="text-sm text-muted-foreground">No TS or TSX files match at this commit.</p>
                 </CardContent>
+              ) : showMap ? (
+                map.data ? (
+                  <DirectoryCanvas map={map.data} onOpen={open} theme={theme} />
+                ) : (
+                  <Skeleton aria-label="Loading directory map" className="h-[520px] w-full" />
+                )
               ) : (
                 <GraphCanvas
                   nodes={nodes}
@@ -166,7 +234,18 @@ export function ExplorerPage({ repository, theme }: Props) {
                   theme={theme}
                 />
               )}
-              <Legend />
+              {showMap ? (
+                <p className="border-t px-4 py-2 text-xs text-muted-foreground">
+                  Boxes are directories, sized by files. An arrow means files in one import files in the other, and is
+                  thicker with more imports. A red border means some files are in an import cycle. Select a box to open
+                  it.
+                  {map.data && map.data.hidden_group_count > 0
+                    ? ` ${map.data.hidden_group_count} smaller groups with ${map.data.hidden_file_count.toLocaleString("en-US")} files are not shown.`
+                    : ""}
+                </p>
+              ) : (
+                <Legend />
+              )}
             </Card>
 
             <Card>
@@ -190,7 +269,23 @@ export function ExplorerPage({ repository, theme }: Props) {
                       placeholder="Search files"
                       spellCheck={false}
                     />
-                    <ul aria-label="Files" className="mt-3 space-y-0.5">
+                    {showMap && !term && map.data && (
+                      <ul aria-label="Groups" className="mt-3 space-y-0.5">
+                        {map.data.groups.map((group) => (
+                          <li key={`${group.kind}:${group.path}`}>
+                            <button
+                              type="button"
+                              onClick={() => open(group)}
+                              className="flex w-full justify-between gap-2 rounded px-1 py-0.5 text-left font-mono text-xs hover:bg-muted"
+                            >
+                              <span className="truncate">{groupLabel(group, map.data.directory)}</span>
+                              <span className="text-muted-foreground">{group.file_count.toLocaleString("en-US")}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <ul aria-label="Files" hidden={showMap && !term} className="mt-3 space-y-0.5">
                       {listed.map((node) => (
                         <li key={node.path}>
                           <button

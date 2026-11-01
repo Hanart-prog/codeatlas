@@ -3,4 +3,4 @@
 /**
  * Stable error codes returned in API error bodies.
  */
-export type ErrorCode = "invalid_input" | "not_found" | "method_not_allowed" | "forbidden_host" | "forbidden_origin" | "not_implemented" | "git_error" | "storage_error" | "internal";
+export type ErrorCode = "invalid_input" | "not_found" | "method_not_allowed" | "forbidden_host" | "forbidden_origin" | "not_implemented" | "git_error" | "storage_error" | "cancelled" | "timed_out" | "internal";
