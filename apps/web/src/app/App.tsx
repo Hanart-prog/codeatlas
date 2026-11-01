@@ -42,7 +42,7 @@ export function App() {
   const selection = useSelectedRepository();
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full border-t-[3px] [border-image:var(--accent)_1]">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-10 focus:rounded focus:bg-card focus:px-3 focus:py-1 focus:text-sm"
@@ -54,12 +54,12 @@ export function App() {
         Skip to content
       </a>
 
-      <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar">
-        <div className="flex h-12 items-center gap-2.5 border-b px-4">
-          <img src="/favicon.svg" alt="" className="size-5" />
-          <span className="text-sm font-semibold tracking-tight">CodeAtlas</span>
+      <aside className="flex w-56 shrink-0 flex-col border-r bg-sidebar">
+        <div className="flex h-14 items-center gap-2.5 px-4">
+          <img src="/favicon.svg" alt="" className="size-6" />
+          <span className="text-[15px] font-semibold tracking-tight">CodeAtlas</span>
         </div>
-        <nav aria-label="Primary" className="flex-1 space-y-0.5 p-2">
+        <nav aria-label="Primary" className="flex-1 space-y-0.5 px-2">
           {ROUTES.map((item) => {
             const active = item.id === route.id;
             const Icon = item.icon;
@@ -71,23 +71,23 @@ export function App() {
                 className={cn(
                   "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors",
                   active
-                    ? "bg-muted font-medium text-foreground"
+                    ? "bg-muted font-medium text-foreground shadow-card"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
-                <Icon aria-hidden className="size-4 shrink-0" />
+                <Icon aria-hidden className={cn("size-4 shrink-0", item.tint)} />
                 <span className="flex-1">{item.label}</span>
               </a>
             );
           })}
         </nav>
-        <p className="border-t p-4 text-xs leading-relaxed text-muted-foreground">
+        <p className="p-4 text-xs leading-relaxed text-muted-foreground">
           Runs locally. Analyzed repositories are read-only and their code is never executed.
         </p>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-12 shrink-0 items-center justify-between border-b px-6">
+        <header className="mx-auto flex h-14 w-full max-w-[calc(72rem+4rem)] shrink-0 items-center justify-between gap-4 px-8">
           <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
             {selection.repository?.path ?? "No repository open"}
           </span>
@@ -105,12 +105,14 @@ export function App() {
         </header>
         <ApiOfflineBanner />
         {selection.repository?.path.endsWith("/demo/product") && (
-          <p role="note" className="border-b bg-muted px-6 py-1.5 text-xs text-muted-foreground">
-            Generated sample repository. Its history was built to show how the tool works, so its results, including
-            backtests, say nothing about real projects.
-          </p>
+          <div className="px-8">
+            <p role="note" className="mx-auto mb-2 max-w-6xl text-xs text-muted-foreground">
+              Generated sample repository. Its history was built to show how the tool works, so its results, including
+              backtests, say nothing about real projects.
+            </p>
+          </div>
         )}
-        <main id="main" tabIndex={-1} className="flex-1 overflow-y-auto p-6 outline-none">
+        <main id="main" tabIndex={-1} className="flex-1 overflow-y-auto px-8 pt-2 pb-12 outline-none">
           {route.id === "explorer" ? (
             <Suspense fallback={<Skeleton aria-label="Loading explorer" className="h-[520px] w-full" />}>
               <ExplorerPage repository={selection.repository} theme={theme} />

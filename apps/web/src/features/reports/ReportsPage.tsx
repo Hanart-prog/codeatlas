@@ -5,7 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { ReportDocument } from "@/types/generated/ReportDocument";
 import type { RepositoryEntry } from "@/types/generated/RepositoryEntry";
 
-const LINK = "inline-flex h-8 items-center rounded-md border bg-card px-3 text-sm font-medium hover:bg-muted";
+const LINK = "inline-flex h-9 items-center rounded-md border bg-card px-4 text-sm font-medium hover:bg-muted";
+const MAIN_LINK = "inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -69,8 +70,8 @@ export function ReportsPage({ repository }: { repository: RepositoryEntry | unde
 
   if (!repository) {
     return (
-      <div className="mx-auto max-w-4xl">
-        <h1 className="text-xl font-semibold tracking-tight">Reports</h1>
+      <div className="mx-auto max-w-6xl">
+        <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
         <p className="mt-2 text-sm text-muted-foreground">Open a repository from the Overview first.</p>
       </div>
     );
@@ -78,9 +79,9 @@ export function ReportsPage({ repository }: { repository: RepositoryEntry | unde
   const notAnalyzed = report.error instanceof ApiRequestError && report.error.code === "not_found";
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className="mx-auto max-w-6xl space-y-4">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Reports</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           One file to keep or share. The HTML page runs no script and loads nothing, and neither format holds your local
           path.
@@ -96,7 +97,7 @@ export function ReportsPage({ repository }: { repository: RepositoryEntry | unde
       {report.data && (
         <>
           <div className="flex gap-2">
-            <a className={LINK} href={reportUrl(repository.id, "html")} download="codeatlas-report.html">
+            <a className={MAIN_LINK} href={reportUrl(repository.id, "html")} download="codeatlas-report.html">
               Download HTML
             </a>
             <a className={LINK} href={reportUrl(repository.id, "json")} download="codeatlas-report.json">

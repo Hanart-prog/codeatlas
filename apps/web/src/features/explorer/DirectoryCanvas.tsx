@@ -6,8 +6,8 @@ import type { DirectoryGroup } from "@/types/generated/DirectoryGroup";
 import type { DirectoryMap } from "@/types/generated/DirectoryMap";
 
 const COLORS = {
-  dark: { node: "#334155", border: "#94a3b8", cycle: "#f87171", label: "#e2e8f0", edge: "#64748b" },
-  light: { node: "#e2e8f0", border: "#64748b", cycle: "#dc2626", label: "#1e293b", edge: "#94a3b8" },
+  dark: { node: "#2e2a26", border: "#8a8378", cycle: "#f0807b", label: "#f1eee9", edge: "#8a8378" },
+  light: { node: "#ffffff", border: "#bf89cd", cycle: "#bd3a35", label: "#221f1c", edge: "#797267" },
 } as const;
 
 export function groupLabel(group: DirectoryGroup, root: string): string {
@@ -55,10 +55,12 @@ export function DirectoryCanvas({ map, onOpen, theme }: Props) {
           style: {
             shape: "round-rectangle",
             "background-color": colors.node,
-            "border-width": 1,
+            "corner-radius": "14",
+            "border-width": 2,
             "border-color": colors.border,
             label: "data(label)",
             color: colors.label,
+            "font-family": '"Inter Variable", system-ui, sans-serif',
             "font-size": 11,
             "text-wrap": "wrap",
             "text-valign": "bottom",
@@ -76,11 +78,19 @@ export function DirectoryCanvas({ map, onOpen, theme }: Props) {
             "target-arrow-color": colors.edge,
             "target-arrow-shape": "triangle",
             "curve-style": "bezier",
-            opacity: 0.7,
+            "line-opacity": 0.5,
           },
         },
       ],
-      layout: { name: "cose", animate: false, nodeDimensionsIncludeLabels: true, randomize: false },
+      layout: {
+        name: "cose",
+        animate: false,
+        nodeDimensionsIncludeLabels: true,
+        randomize: false,
+        padding: 32,
+        nodeRepulsion: () => 40_000,
+        idealEdgeLength: () => 110,
+      },
       wheelSensitivity: 0.3,
     });
     graph.on("tap", "node", (event) => {

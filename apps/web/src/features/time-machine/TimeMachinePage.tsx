@@ -17,7 +17,7 @@ import { buildOverlay } from "./overlay";
 import { TimelineCharts } from "./TimelineCharts";
 
 const COMMIT_CHOICES = 200;
-const FIELD = "h-8 w-full rounded-md border bg-background px-2 text-sm";
+const FIELD = "h-9 w-full rounded-md border bg-card px-2 text-sm";
 const LIMITATION =
   "These are changes in static imports between two commits. An added or removed import says what the source declares, not what runs.";
 
@@ -231,8 +231,8 @@ export function TimeMachinePage({ repository, theme }: Props) {
 
   if (!repository) {
     return (
-      <div className="mx-auto max-w-4xl">
-        <h1 className="text-xl font-semibold tracking-tight">Time Machine</h1>
+      <div className="mx-auto max-w-6xl">
+        <h1 className="text-2xl font-semibold tracking-tight">Time Machine</h1>
         <p className="mt-2 text-sm text-muted-foreground">Open a repository from the Overview first.</p>
       </div>
     );
@@ -273,7 +273,7 @@ export function TimeMachinePage({ repository, theme }: Props) {
   return (
     <div className="mx-auto max-w-6xl space-y-4">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Time Machine</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Time Machine</h1>
         <p className="mt-1 text-sm text-muted-foreground">{LIMITATION}</p>
       </div>
 

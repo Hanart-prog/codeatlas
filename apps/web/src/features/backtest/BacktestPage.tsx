@@ -15,7 +15,7 @@ import { IntervalChart } from "./IntervalChart";
 import { interval, metricsAt, percent, RANKER_LABELS, verdict } from "./labels";
 import { TrendChart } from "./TrendChart";
 
-const FIELD = "h-8 rounded-md border bg-background px-2 text-sm";
+const FIELD = "h-9 rounded-md border bg-card px-3 text-sm";
 const LIMITATION =
   "This measures co-edit prediction: whether files changed together in later commits. It does not measure bugs, real causal impact or developer productivity, and a held-out file may have changed for an unrelated reason.";
 
@@ -296,8 +296,8 @@ export function BacktestPage({ repository, theme }: Props) {
 
   if (!repository) {
     return (
-      <div className="mx-auto max-w-4xl">
-        <h1 className="text-xl font-semibold tracking-tight">Backtesting</h1>
+      <div className="mx-auto max-w-6xl">
+        <h1 className="text-2xl font-semibold tracking-tight">Backtesting</h1>
         <p className="mt-2 text-sm text-muted-foreground">Open a repository from the Overview first.</p>
       </div>
     );
@@ -316,7 +316,7 @@ export function BacktestPage({ repository, theme }: Props) {
   return (
     <div className="mx-auto max-w-6xl space-y-4">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Backtesting</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Backtesting</h1>
         <p className="mt-1 text-sm text-muted-foreground">{LIMITATION}</p>
       </div>
 

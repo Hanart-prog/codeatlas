@@ -136,4 +136,4 @@ Results go to stdout and logs to stderr. Rerunning `analyze` on the same commit 
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). The dashboard bundles the Inter and JetBrains Mono fonts under the SIL Open Font License, and its look is adapted from the [Micro style reference](https://styles.refero.design/style/cc43cfe3-195b-4081-b586-c42db054a466).

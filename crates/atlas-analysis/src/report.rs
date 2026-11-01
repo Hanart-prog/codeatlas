@@ -182,8 +182,8 @@ fn percent(estimate: &Estimate) -> String {
 }
 
 const STYLE: &str = "\
-:root{color-scheme:light dark;--ink:#1e293b;--soft:#526075;--line:#dbe1e9;--bg:#fff;--series:#2a78d6}\
-@media(prefers-color-scheme:dark){:root{--ink:#e2e8f0;--soft:#a3afc0;--line:#333c49;--bg:#14181f;--series:#3987e5}}\
+:root{color-scheme:light dark;--ink:#221f1c;--soft:#66605a;--line:#e4e3e1;--bg:#f5f5f5;--series:#2a78d6}\
+@media(prefers-color-scheme:dark){:root{--ink:#f1eee9;--soft:#aaa399;--line:#3a3530;--bg:#191715;--series:#3987e5}}\
 body{margin:0 auto;max-width:860px;padding:32px 20px;background:var(--bg);color:var(--ink);\
 font:15px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif}\
 h1{font-size:24px;margin:0}h2{font-size:17px;margin:32px 0 8px}\

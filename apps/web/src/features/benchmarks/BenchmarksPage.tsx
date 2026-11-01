@@ -71,9 +71,9 @@ function Subject({ subject }: { subject: (typeof results.subjects)[number] }) {
 /** Figures recorded by `benchmarks/run.py`, not from this machine or repository. */
 export function BenchmarksPage() {
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className="mx-auto max-w-6xl space-y-4">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Benchmarks</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Benchmarks</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Recorded by <code className="font-mono">make bench</code>, not measured live. Machine: {results.machine.cpu},{" "}
           {results.machine.memory_gib} GiB, {results.machine.os}. {results.tool}, {results.repetitions} repetitions of

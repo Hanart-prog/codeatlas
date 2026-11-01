@@ -1,7 +1,10 @@
+import { useState } from "react";
+
 import { ApiRequestError } from "@/api/client";
 import { useOverview } from "@/api/queries";
 import { useHealth } from "@/api/useHealth";
 import type { SelectedRepository } from "@/app/useSelectedRepository";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -75,7 +78,8 @@ function EngineCard() {
   );
 }
 
-function RepositorySection({ repository, select }: SelectedRepository) {
+function RepositorySection({ repository, select, close }: SelectedRepository) {
+  const [closings, setClosings] = useState(0);
   const overview = useOverview(repository?.id);
   const notAnalyzed = overview.error instanceof ApiRequestError && overview.error.code === "not_found";
 
@@ -84,9 +88,21 @@ function RepositorySection({ repository, select }: SelectedRepository) {
       <Card>
         <CardHeader>
           <CardTitle>Repository</CardTitle>
+          {repository && (
+            <Button
+              variant="ghost"
+              className="h-7 px-2 text-xs"
+              onClick={() => {
+                close();
+                setClosings((count) => count + 1);
+              }}
+            >
+              Close repository
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
-          <OpenRepositoryForm initialPath={repository?.path ?? ""} onAnalyzed={select} />
+          <OpenRepositoryForm key={closings} initialPath={repository?.path ?? ""} onAnalyzed={select} />
           {notAnalyzed && <p className="mt-3 text-sm text-muted-foreground">This repository has not been analyzed yet.</p>}
           {overview.error && !notAnalyzed && (
             <p role="alert" className="mt-3 text-sm text-destructive">
@@ -109,9 +125,9 @@ function RepositorySection({ repository, select }: SelectedRepository) {
 
 export function OverviewPage({ selection }: { selection: SelectedRepository }) {
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Overview</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           See which files to inspect when you change one, and the Git and import evidence behind each suggestion.
         </p>

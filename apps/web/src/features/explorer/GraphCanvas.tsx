@@ -10,8 +10,8 @@ import { type DiffState, edgeId } from "./graphDiff";
 
 /** Canvas colors, as Cytoscape cannot read the CSS theme variables. */
 const COLORS = {
-  dark: { node: "#94a3b8", cycle: "#f87171", label: "#e2e8f0", edge: "#64748b", selected: "#5eead4", cochange: "#fbbf24", added: "#34d399", removed: "#fb7185" },
-  light: { node: "#64748b", cycle: "#dc2626", label: "#1e293b", edge: "#94a3b8", selected: "#0f766e", cochange: "#b45309", added: "#047857", removed: "#be123c" },
+  dark: { surface: "#221f1c", node: "#8a8378", cycle: "#f0807b", label: "#f1eee9", edge: "#8a8378", selected: "#6ba3e8", cochange: "#e5a057", added: "#6fcf9f", removed: "#f0807b" },
+  light: { surface: "#ffffff", node: "#bf89cd", cycle: "#bd3a35", label: "#221f1c", edge: "#797267", selected: "#3f78c8", cochange: "#b07225", added: "#2a7653", removed: "#bd3a35" },
 } as const;
 
 const LINE_STYLES: Record<GraphEdge["edge_type"], "solid" | "dashed" | "dotted"> = {
@@ -96,25 +96,32 @@ export function GraphCanvas({
         {
           selector: "node",
           style: {
-            "background-color": colors.node,
+            "background-color": colors.surface,
+            "border-width": 2,
+            "border-color": colors.node,
             label: "data(label)",
             color: colors.label,
+            "font-family": '"Inter Variable", system-ui, sans-serif',
             "font-size": 11,
             "text-valign": "bottom",
             "text-margin-y": 4,
-            width: "mapData(degree, 0, 12, 14, 34)",
-            height: "mapData(degree, 0, 12, 14, 34)",
+            "text-background-color": colors.surface,
+            "text-background-opacity": 0.8,
+            "text-background-padding": "1px",
+            width: "mapData(degree, 0, 12, 16, 38)",
+            height: "mapData(degree, 0, 12, 16, 38)",
           },
         },
-        { selector: "node.added", style: { "background-color": colors.added, shape: "round-rectangle" } },
-        { selector: "node.cycle", style: { "background-color": colors.cycle, shape: "diamond" } },
+        { selector: "node.added", style: { "border-color": colors.added, "border-width": 3, shape: "round-rectangle" } },
+        { selector: "node.cycle", style: { "border-color": colors.cycle, "border-width": 3, shape: "diamond" } },
         { selector: "node.emphasized", style: { "border-width": 3, "border-color": colors.selected } },
         { selector: "node:selected", style: { "border-width": 3, "border-color": colors.selected } },
         {
           selector: "edge",
           style: {
-            width: 1.5,
+            width: 1,
             "line-color": colors.edge,
+            "line-opacity": 0.6,
             "line-style": "data(line)" as "solid",
             "target-arrow-color": colors.edge,
             "target-arrow-shape": "data(arrow)" as "triangle",
@@ -128,11 +135,11 @@ export function GraphCanvas({
         { selector: "node.renamed", style: { "border-width": 3, "border-style": "double", "border-color": colors.edge } },
         {
           selector: "edge.added",
-          style: { width: 3, "line-color": colors.added, "target-arrow-color": colors.added },
+          style: { width: 2.5, "line-opacity": 1, "line-color": colors.added, "target-arrow-color": colors.added },
         },
         {
           selector: "edge.removed",
-          style: { "line-style": "dashed", "line-color": colors.removed, "target-arrow-color": colors.removed },
+          style: { "line-style": "dashed", "line-opacity": 1, "line-color": colors.removed, "target-arrow-color": colors.removed },
         },
         {
           selector: "edge.cochange",
@@ -140,17 +147,26 @@ export function GraphCanvas({
             width: "mapData(shared, 3, 20, 2, 6)",
             "line-color": colors.cochange,
             "line-style": "solid",
+            "line-opacity": 1,
             "target-arrow-shape": "none",
             label: "data(shared)",
             color: colors.cochange,
             "font-size": 10,
-            "text-background-color": theme === "dark" ? "#14181f" : "#ffffff",
+            "text-background-color": colors.surface,
             "text-background-opacity": 1,
             "text-background-padding": "2px",
           },
         },
       ],
-      layout: { name: "cose", animate: false, nodeDimensionsIncludeLabels: true, randomize: false },
+      layout: {
+        name: "cose",
+        animate: false,
+        nodeDimensionsIncludeLabels: true,
+        randomize: false,
+        padding: 24,
+        nodeRepulsion: () => 12_000,
+        idealEdgeLength: () => 70,
+      },
       wheelSensitivity: 0.3,
     });
     graph.on("tap", (event) => {

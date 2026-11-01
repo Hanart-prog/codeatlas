@@ -35,7 +35,7 @@ export function OpenRepositoryForm({ initialPath = "", onAnalyzed }: Props) {
           placeholder="/path/to/repository"
           spellCheck={false}
           autoComplete="off"
-          className="h-8 min-w-0 flex-1 rounded-md border bg-background px-3 font-mono text-sm placeholder:text-muted-foreground"
+          className="h-9 min-w-0 flex-1 rounded-md border bg-card px-3 font-mono text-sm placeholder:text-muted-foreground"
         />
         <Button type="submit" disabled={analysis.isPending || !path.trim()}>
           {analysis.isPending ? "Analyzing…" : "Analyze"}

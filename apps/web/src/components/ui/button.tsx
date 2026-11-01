@@ -8,15 +8,16 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
+        primary: "bg-primary text-primary-foreground hover:opacity-90 active:shadow-[inset_0_-2px_0_0_rgb(0_0_0/0.2)]",
         outline: "border bg-card hover:bg-muted",
         ghost: "text-muted-foreground hover:bg-muted hover:text-foreground",
       },
       size: {
-        default: "h-8 px-3",
-        icon: "size-8",
+        default: "h-9 px-4",
+        icon: "size-9",
       },
     },
-    defaultVariants: { variant: "outline", size: "default" },
+    defaultVariants: { variant: "primary", size: "default" },
   },
 );
 

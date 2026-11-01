@@ -66,10 +66,10 @@ describe("App", () => {
 
   it("toggles and remembers the theme", async () => {
     stubFetch(200, healthyBody);
-    document.documentElement.classList.add("dark");
+    localStorage.removeItem("codeatlas-theme");
     renderWithQuery(<App />);
-    await userEvent.click(screen.getByRole("button", { name: "Switch to light theme" }));
-    await waitFor(() => expect(document.documentElement).not.toHaveClass("dark"));
-    expect(localStorage.getItem("codeatlas-theme")).toBe("light");
+    await userEvent.click(screen.getByRole("button", { name: "Switch to dark theme" }));
+    await waitFor(() => expect(document.documentElement).toHaveClass("dark"));
+    expect(localStorage.getItem("codeatlas-theme")).toBe("dark");
   });
 });

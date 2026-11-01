@@ -72,6 +72,32 @@ function stubAnalyzed(result: OverviewResponse = overview) {
   });
 }
 
+describe("closing a repository", () => {
+  it("returns to the empty start, stays there after a reload, and can open again", async () => {
+    localStorage.setItem("codeatlas-repository", "1");
+    stubRoutes({
+      "/health": { body: healthyBody },
+      "/repositories": { body: [repository] },
+      "/repositories/1/overview": { body: overview },
+      "/repositories/1/commits": { body: { commits: [], next_cursor: null } },
+      "/repositories/1/jobs": { body: [] },
+    });
+    const { unmount } = renderWithQuery(<Page />);
+    expect(await screen.findByText("1,234")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Close repository" }));
+    expect(screen.queryByText("1,234")).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Absolute path/)).toHaveValue("");
+    expect(screen.queryByRole("button", { name: "Close repository" })).not.toBeInTheDocument();
+
+    unmount();
+    renderWithQuery(<Page />);
+    expect(await screen.findByLabelText(/Absolute path/)).toHaveValue("");
+    expect(screen.queryByText("1,234")).not.toBeInTheDocument();
+    localStorage.removeItem("codeatlas-repository");
+  });
+});
+
 describe("OverviewPage", () => {
   it("shows a loading state while the request is in flight", () => {
     vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));

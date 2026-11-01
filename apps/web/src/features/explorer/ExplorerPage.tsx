@@ -20,7 +20,8 @@ const COMMIT_CHOICES = 200;
 /** Above this a file graph is a tangle, so the map comes first. */
 const MAP_ABOVE_FILES = 200;
 const FOUND_FILES = 100;
-const FIELD = "h-8 rounded-md border bg-background px-2 text-sm";
+const SEGMENT = "h-7 px-3 text-xs aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-card";
+const FIELD = "h-9 rounded-md border bg-card px-3 text-sm";
 
 function LegendLine({ dash, label }: { dash: string; label: string }) {
   return (
@@ -45,7 +46,7 @@ function Legend() {
         in a cycle
       </span>
       <span className="flex items-center gap-1.5">
-        <span aria-hidden className="h-1 w-6 rounded bg-amber-500" />
+        <span aria-hidden className="h-1 w-6 rounded bg-marker-amber" />
         co-change, with shared commits
       </span>
       <span>Edges show source imports, not what runs. Co-change is correlation, not a dependency.</span>
@@ -102,8 +103,8 @@ export function ExplorerPage({ repository, theme }: Props) {
 
   if (!repository) {
     return (
-      <div className="mx-auto max-w-4xl">
-        <h1 className="text-xl font-semibold tracking-tight">Architecture Explorer</h1>
+      <div className="mx-auto max-w-6xl">
+        <h1 className="text-2xl font-semibold tracking-tight">Architecture Explorer</h1>
         <p className="mt-2 text-sm text-muted-foreground">Open a repository from the Overview first.</p>
       </div>
     );
@@ -113,7 +114,7 @@ export function ExplorerPage({ repository, theme }: Props) {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
-      <h1 className="text-xl font-semibold tracking-tight">Architecture Explorer</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Architecture Explorer</h1>
 
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-muted-foreground">
@@ -179,13 +180,15 @@ export function ExplorerPage({ repository, theme }: Props) {
                   {data.commit.slice(0, 10)} · {data.total_edge_count.toLocaleString("en-US")} imports in total
                 </span>
               </CardHeader>
-              <div className="flex flex-wrap items-center gap-2 px-4 pb-2 text-xs">
-                <Button type="button" variant="ghost" className="aria-pressed:bg-muted aria-pressed:text-foreground" aria-pressed={showMap} onClick={() => setView("map")}>
-                  Directory map
-                </Button>
-                <Button type="button" variant="ghost" className="aria-pressed:bg-muted aria-pressed:text-foreground" aria-pressed={!showMap} onClick={() => setView("files")}>
-                  Files
-                </Button>
+              <div className="flex flex-wrap items-center gap-3 px-4 pt-3 pb-2 text-xs">
+                <span className="inline-flex rounded-md bg-muted p-0.5">
+                  <Button type="button" variant="ghost" className={SEGMENT} aria-pressed={showMap} onClick={() => setView("map")}>
+                    Directory map
+                  </Button>
+                  <Button type="button" variant="ghost" className={SEGMENT} aria-pressed={!showMap} onClick={() => setView("files")}>
+                    Files
+                  </Button>
+                </span>
                 {showMap && map.data && (
                   <nav aria-label="Directory" className="flex flex-wrap items-center gap-1 font-mono text-muted-foreground">
                     <button type="button" className="hover:text-foreground" onClick={() => setDirectory("")}>

@@ -21,9 +21,9 @@ const EXCLUSION_LABELS: Record<ExclusionReason, string> = {
 
 function Stat({ label, value, note }: { label: string; value: number; note?: string }) {
   return (
-    <div className="rounded-lg border bg-card px-4 py-3">
+    <div className="rounded-lg border bg-card px-4 py-3 shadow-card">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-1 font-mono text-2xl tracking-tight">{formatCount(value)}</dd>
+      <dd className="mt-1 text-[28px] leading-tight font-semibold tracking-tight tabular-nums">{formatCount(value)}</dd>
       {note && <dd className="mt-0.5 text-xs text-muted-foreground">{note}</dd>}
     </div>
   );

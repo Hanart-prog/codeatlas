@@ -14,7 +14,7 @@ import { Recommendation } from "./Recommendation";
 
 const COMMIT_CHOICES = 200;
 const SUGGESTIONS = 30;
-const FIELD = "h-8 rounded-md border bg-background px-2 text-sm";
+const FIELD = "h-9 rounded-md border bg-card px-3 text-sm";
 const LIMITATION =
   "Scores rank files to inspect. A score is a heuristic, not a probability of failure, and history shows files that changed together, not that one caused the other.";
 
@@ -68,8 +68,8 @@ export function ImpactPage({ repository, theme }: Props) {
 
   if (!repository) {
     return (
-      <div className="mx-auto max-w-4xl">
-        <h1 className="text-xl font-semibold tracking-tight">Change Impact</h1>
+      <div className="mx-auto max-w-6xl">
+        <h1 className="text-2xl font-semibold tracking-tight">Change Impact</h1>
         <p className="mt-2 text-sm text-muted-foreground">Open a repository from the Overview first.</p>
       </div>
     );
@@ -96,9 +96,9 @@ export function ImpactPage({ repository, theme }: Props) {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="mx-auto max-w-6xl space-y-4">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Change Impact</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Change Impact</h1>
         <p className="mt-1 text-sm text-muted-foreground">{LIMITATION}</p>
       </div>
 

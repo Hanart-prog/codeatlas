@@ -76,6 +76,10 @@ Phase 2 skips Git LFS pointers when parsing.
 
 Building Phase 1 also found one thing the specification should warn about: the history limit changes results, so it belongs in the cache key alongside `config_hash`.
 
+## Visual design
+
+Section 13 asks for a dark-first interface. **Changed after Phase 6:** the dashboard follows the Micro style and opens in light, with a dark theme one click away ([ADR 19](decisions/0019-micro-visual-style.md)).
+
 ## Data model changes
 
 Phases 1 and 2 applied the `run_commits`, `commits`, `snapshots` and `parsed_blobs` changes, and placed identities on the run. The rest apply as each table is introduced.
