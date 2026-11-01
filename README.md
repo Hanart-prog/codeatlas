@@ -38,15 +38,15 @@ It beat the baseline on all six, though on one the margin is within the error ba
 
 ```mermaid
 flowchart LR
-    repo[("Local Git repository<br/>read-only")] --> git["atlas-git<br/>commits, diffs, renames"]
-    repo --> parser["atlas-parser<br/>TS and TSX imports"]
-    parser --> graph["atlas-graph<br/>cycles, reachability"]
-    git --> analysis["atlas-analysis<br/>impact, comparison, backtests"]
-    graph --> analysis
-    analysis <--> storage[("SQLite<br/>outside the repository")]
-    analysis --> cli["codeatlas CLI"]
-    analysis --> api["Local API<br/>127.0.0.1 only"]
-    api --> web["React dashboard"]
+    source[("Local Git repository<br/>read-only")] --> gitlayer["atlas-git<br/>commits, diffs, renames"]
+    source --> parserlayer["atlas-parser<br/>TS and TSX imports"]
+    parserlayer --> graphlayer["atlas-graph<br/>cycles, reachability"]
+    gitlayer --> engine["atlas-analysis<br/>impact, comparison, backtests"]
+    graphlayer --> engine
+    engine <--> database[("SQLite<br/>outside the repository")]
+    engine --> terminal["codeatlas CLI"]
+    engine --> server["Local API<br/>127.0.0.1 only"]
+    server --> dashboard["React dashboard"]
 ```
 
 The Rust engine works without the dashboard, and the dashboard contains no analysis logic. [docs/architecture.md](docs/architecture.md) has the details.
